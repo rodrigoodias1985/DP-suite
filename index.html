@@ -1,0 +1,3192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DP+ Suite</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    /* === RESET & BASE === */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+    html { height: 100% }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      background: #f3f4f6;
+      color: #111827;
+      min-height: 100vh;
+    }
+    :root {
+      --teal:       #0d7377;
+      --teal-d:     #0a5d61;
+      --teal-bg:    #e6f4f4;
+      --navy:       #111827;
+      --gray-50:    #f9fafb;
+      --gray-100:   #f3f4f6;
+      --gray-200:   #e5e7eb;
+      --gray-400:   #9ca3af;
+      --gray-500:   #6b7280;
+      --gray-700:   #374151;
+      --green:      #16a34a;
+      --green-bg:   #dcfce7;
+      --red:        #dc2626;
+      --red-bg:     #fee2e2;
+      --amber:      #d97706;
+      --amber-bg:   #fef3c7;
+      --blue:       #2563eb;
+      --white:      #ffffff;
+      --radius:     8px;
+      --radius-lg:  12px;
+    }
+
+    /* === HELPERS === */
+    .hidden { display: none !important }
+    label { display: block; font-size: 11px; font-weight: 600; color: var(--gray-500);
+            text-transform: uppercase; letter-spacing:.05em; margin-bottom: 5px }
+    input[type=text], input[type=email], input[type=password], input[type=number],
+    input[type=date], select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius);
+      font-size: 13px;
+      outline: none;
+      background: var(--white);
+      transition: border-color .15s;
+    }
+    input:focus, select:focus { border-color: var(--teal) }
+    .btn {
+      padding: 9px 18px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1.5px solid transparent;
+      transition: all .15s;
+    }
+    .btn-primary  { background: var(--teal); color: var(--white); }
+    .btn-primary:hover { background: var(--teal-d) }
+    .btn-primary:disabled { opacity: .55; cursor: not-allowed }
+    .btn-secondary { background: var(--white); color: var(--gray-700); border-color: var(--gray-200) }
+    .btn-secondary:hover { background: var(--gray-50) }
+    .btn-danger { background: var(--red-bg); color: var(--red); border-color: #fca5a5 }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2.5px solid var(--gray-200);
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg) } }
+    .loading { display:flex; align-items:center; justify-content:center;
+               gap: 10px; padding: 60px 20px; color: var(--gray-400); font-size:13px }
+    .empty { text-align:center; padding:60px 20px; color:var(--gray-500) }
+    .empty h3 { font-size:16px; font-weight:600; color:var(--gray-700); margin-bottom:8px }
+    .empty p  { font-size:13px; line-height:1.6 }
+
+    /* === LOGIN === */
+    #v-login {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; background: var(--navy);
+    }
+    .login-box {
+      background: var(--white); border-radius: var(--radius-lg);
+      padding: 40px; width: 100%; max-width: 380px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.35);
+    }
+    .login-logo { text-align:center; margin-bottom:32px }
+    .login-logo h1 { font-size:26px; font-weight:800; letter-spacing:-1px }
+    .login-logo h1 span { color: var(--teal) }
+    .login-logo p { font-size:12px; color:var(--gray-400); margin-top:4px }
+    .login-field { margin-bottom: 16px }
+    .btn-login { width:100%; margin-top:8px; padding:11px }
+    .login-err {
+      margin-top:12px; padding:10px 14px;
+      background:var(--red-bg); color:var(--red);
+      border-radius:var(--radius); font-size:13px;
+    }
+
+    /* === APP SHELL === */
+    #v-app { min-height:100vh }
+    header {
+      background: var(--navy); color: var(--white);
+      height: 52px; padding: 0 20px;
+      display:flex; align-items:center; justify-content:space-between;
+      position: sticky; top:0; z-index:100;
+    }
+    .hd-l { display:flex; align-items:center; gap:14px }
+    .hd-logo { font-size:17px; font-weight:800; letter-spacing:-.5px }
+    .hd-logo span { color: #22d3ee }
+    .hd-comp {
+      font-size:12px; padding:3px 10px;
+      background:rgba(255,255,255,.08); border-radius:20px;
+      color:rgba(255,255,255,.65);
+    }
+    .hd-comp strong { color:var(--white) }
+    .hd-r { display:flex; align-items:center; gap:10px }
+    .hd-name { font-size:12px; color:rgba(255,255,255,.7) }
+    .hd-badge {
+      font-size:10px; font-weight:700; padding:2px 8px;
+      border-radius:10px; background:rgba(13,115,119,.4); color:#22d3ee;
+      text-transform:uppercase;
+    }
+    .btn-sair {
+      padding:5px 12px; border-radius:6px; font-size:12px; cursor:pointer;
+      background:rgba(255,255,255,.1); border:none; color:rgba(255,255,255,.65);
+    }
+    .btn-sair:hover { background:rgba(255,255,255,.18) }
+
+    /* === NAV TABS === */
+    .tabs {
+      background:var(--white); border-bottom:1px solid var(--gray-200);
+      padding:0 20px; display:flex; gap:0;
+    }
+    .tab {
+      padding:11px 16px; font-size:13px; font-weight:500;
+      color:var(--gray-400); cursor:pointer;
+      border:none; background:none;
+      border-bottom:2px solid transparent; transition:all .15s;
+    }
+    .tab.active { color:var(--teal); border-bottom-color:var(--teal) }
+    .tab:hover:not(.active) { color:var(--gray-700) }
+
+    /* === MAIN === */
+    main { padding:20px }
+
+    /* === SUMMARY BAR === */
+    .sumbar {
+      background:var(--white); border:1px solid var(--gray-200);
+      border-radius:var(--radius-lg); padding:14px 20px;
+      margin-bottom:16px; display:flex; align-items:center;
+      gap:20px; flex-wrap:wrap;
+    }
+    .stat .n { font-size:22px; font-weight:700; line-height:1 }
+    .stat .l { font-size:11px; color:var(--gray-500); margin-top:2px }
+    .sdiv { width:1px; height:32px; background:var(--gray-200) }
+    .progw { flex:1; min-width:100px; display:flex; align-items:center; gap:10px }
+    .prog  { flex:1; height:6px; background:var(--gray-200); border-radius:3px; overflow:hidden }
+    .progf { height:100%; background:var(--green); border-radius:3px; transition:width .5s }
+    .progt { font-size:12px; font-weight:700; min-width:32px; text-align:right; color:var(--green) }
+
+    /* === SEARCH === */
+    .search-bar { margin-bottom:12px; display:flex; align-items:center; gap:10px }
+    .search-bar input { max-width:280px }
+
+    /* === TABLE WRAPPER === */
+    .tbl-wrap {
+      overflow:auto; border-radius:var(--radius-lg);
+      border:1px solid var(--gray-200); background:var(--white);
+      max-height: calc(100vh - 165px);
+    }
+    table { border-collapse:collapse; font-size:12px; min-width:100% }
+    thead th {
+      background:#f6f8fa; font-weight:600; color:var(--gray-500);
+      padding:8px 3px; text-align:center; font-size:10px;
+      white-space:nowrap; border-bottom:1px solid var(--gray-200);
+      position:sticky; top:0; z-index:2;
+    }
+    thead th.co {
+      text-align:left; padding-left:14px;
+      min-width:200px; width:200px;
+      position:sticky; left:0; z-index:3;
+    }
+    tbody td {
+      padding:3px; border-bottom:1px solid var(--gray-200);
+      vertical-align:middle;
+    }
+    tbody td.co {
+      padding:7px 8px 7px 14px;
+      position:sticky; left:0; background:var(--white);
+      z-index:1; border-right:1px solid var(--gray-200);
+      min-width:200px; width:200px;
+    }
+    tbody tr:last-child td { border-bottom:none }
+    tbody tr:hover td { background:#f0fafa !important }
+    tbody tr.smov td { opacity:.5 }
+    .co-code { font-family:monospace; font-size:10px; color:var(--gray-400) }
+    .co-nm { font-weight:600; color:var(--navy);
+             white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px }
+    .co-meta { font-size:10px; color:var(--gray-400); margin-top:2px }
+    td.ac { text-align:center; min-width:50px }
+    .chip {
+      display:inline-flex; align-items:center; justify-content:center;
+      border-radius:6px; font-size:10px; font-weight:600;
+      height:28px; min-width:42px; cursor:default; transition:all .15s;
+    }
+    .c-nt   { background:var(--gray-100); color:var(--gray-200); font-size:14px }
+    .c-ok   { background:var(--green-bg); color:var(--green); cursor:pointer }
+    .c-ok:hover { opacity:.78 }
+    .c-pend {
+      background:var(--white); border:1.5px dashed var(--gray-200);
+      color:var(--gray-400); cursor:pointer; font-size:16px;
+    }
+    .c-pend:hover { border-color:var(--teal); color:var(--teal); background:var(--teal-bg) }
+    .c-no {
+      background:var(--amber-bg); color:var(--amber);
+      cursor:pointer; font-size:11px; font-weight:700;
+    }
+    .c-no:hover { opacity:.78 }
+
+    /* === MODAL === */
+    .overlay {
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,.45); z-index:200;
+      align-items:center; justify-content:center;
+    }
+    .overlay.show { display:flex }
+    .modal {
+      background:var(--white); border-radius:var(--radius-lg);
+      padding:24px; width:100%; max-width:320px;
+      box-shadow:0 8px 40px rgba(0,0,0,.2);
+    }
+    .modal h3 { font-size:15px; font-weight:700; margin-bottom:3px }
+    .modal p  { font-size:12px; color:var(--gray-500); margin-bottom:16px }
+    .modal .field { margin-bottom:16px }
+    .mactions { display:flex; gap:8px; margin-top:4px }
+
+    /* === TOAST === */
+    #toast {
+      position:fixed; bottom:20px; right:20px; z-index:300;
+      padding:12px 18px; border-radius:var(--radius);
+      font-size:13px; font-weight:500;
+      box-shadow:0 4px 16px rgba(0,0,0,.18);
+    }
+    #toast.ok  { background:var(--green); color:#fff }
+    #toast.err { background:var(--red); color:#fff }
+    #toast.inf { background:var(--navy); color:#fff }
+
+    /* === KPI CARDS === */
+    .kgrid {
+      display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));
+      gap:12px; margin-bottom:20px;
+    }
+    .kcard {
+      background:var(--white); border:1px solid var(--gray-200);
+      border-radius:var(--radius-lg); padding:16px 18px;
+    }
+    .kcard.kal { background:#fff7f7; border-color:#fca5a5 }
+    .kl  { font-size:10px; font-weight:700; color:var(--gray-400);
+           text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px }
+    .kn  { font-size:26px; font-weight:800; line-height:1; margin-bottom:4px }
+    .ks  { font-size:11px; margin-bottom:2px }
+    .ks2 { font-size:11px; color:var(--gray-400) }
+    .kbar{ height:4px; background:var(--gray-200); border-radius:2px;
+           overflow:hidden; margin-top:10px }
+    .kbf { height:100%; border-radius:2px }
+
+    /* === ANALYST ROWS === */
+    .card { background:var(--white); border:1px solid var(--gray-200);
+            border-radius:var(--radius-lg); padding:18px 20px; margin-bottom:12px }
+    .stitle { font-size:10px; font-weight:700; color:var(--gray-400);
+              text-transform:uppercase; letter-spacing:.06em; margin-bottom:12px }
+    .arow { display:flex; align-items:center; gap:12px;
+            padding:8px 0; border-bottom:1px solid var(--gray-200) }
+    .arow:last-child { border-bottom:none }
+    .aname { font-weight:600; font-size:13px; width:175px; flex-shrink:0 }
+    .ameta { font-size:11px; color:var(--gray-400) }
+    .apw   { flex:1; display:flex; align-items:center; gap:10px }
+    .ap    { flex:1; height:6px; background:var(--gray-200); border-radius:3px; overflow:hidden }
+    .apf   { height:100%; border-radius:3px }
+    .apct  { font-size:12px; font-weight:700; min-width:34px; text-align:right }
+
+    /* === ADMIN === */
+    .acard {
+      background:var(--white); border:1px solid var(--gray-200);
+      border-radius:var(--radius-lg); padding:24px; max-width:500px; margin-bottom:16px;
+    }
+    .acard h3 { font-size:15px; font-weight:700; margin-bottom:4px }
+    .acard > p { font-size:13px; color:var(--gray-500); margin-bottom:20px }
+    .frow { display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap }
+    .frow .fg { flex:1; min-width:100px }
+    .fg { margin-bottom:14px }
+    .comp-item {
+      display:flex; align-items:center; gap:12px;
+      padding:8px 0; border-bottom:1px solid var(--gray-200); font-size:13px;
+    }
+    .comp-item:last-child { border-bottom:none }
+    .comp-mes { font-weight:600; min-width:90px }
+    .tag {
+      font-size:11px; font-weight:600; padding:2px 10px;
+      border-radius:10px;
+    }
+    .tag-open   { background:var(--green-bg); color:var(--green) }
+    .tag-closed { background:var(--gray-100); color:var(--gray-500) }
+    .tag-concluida { background:#dbeafe; color:#1d4ed8 }
+
+    /* === COMP PICKER === */
+    .hd-comp { cursor:pointer; user-select:none }
+    .hd-comp:hover { background:rgba(255,255,255,.14) }
+    #comp-picker {
+      position:fixed; top:52px; left:20px; z-index:300;
+      background:var(--white); border:1px solid var(--gray-200);
+      border-radius:var(--radius); padding:4px; min-width:185px;
+      box-shadow:0 4px 20px rgba(0,0,0,.18);
+    }
+    .comp-pi {
+      padding:8px 12px; font-size:13px; border-radius:6px; cursor:pointer;
+      display:flex; align-items:center; justify-content:space-between;
+      font-weight:500; transition:background .1s; color:var(--navy);
+    }
+    .comp-pi:hover { background:var(--gray-50) }
+    .comp-pi.active { background:var(--teal-bg); color:var(--teal) }
+    .comp-pi .check { font-size:11px; opacity:.6 }
+
+    /* === FILTER BAR === */
+    .filter-bar {
+      margin-bottom:10px; display:flex; gap:6px; flex-wrap:wrap; align-items:center;
+    }
+    .fbtn {
+      padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600;
+      cursor:pointer; border:1.5px solid var(--gray-200);
+      background:var(--white); color:var(--gray-500); transition:all .12s;
+    }
+    .fbtn.on { background:var(--teal); border-color:var(--teal); color:var(--white) }
+    .fbtn:hover:not(.on) { border-color:var(--teal); color:var(--teal) }
+    .fl { font-size:11px; color:var(--gray-400); font-weight:600; margin-right:2px }
+
+    /* === CARD DRILL-DOWN === */
+    .card-detail {
+      background:var(--white); border:1px solid var(--gray-200);
+      border-radius:var(--radius-lg); padding:18px 20px; margin-top:16px;
+    }
+    .card-detail h4 { font-size:13px; font-weight:700; margin-bottom:12px; color:var(--navy) }
+    .cd-row {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:6px 0; border-bottom:1px solid var(--gray-200); font-size:12px;
+    }
+    .cd-row:last-child { border-bottom:none }
+    .cd-name { font-weight:600; color:var(--navy) }
+    .cd-atv  { color:var(--gray-400); font-size:11px; margin-top:1px }
+
+    /* === INLINE ACTION BUTTONS === */
+    .btn-xs {
+      padding:3px 9px; border-radius:5px; font-size:11px; font-weight:600;
+      cursor:pointer; border:1.5px solid transparent; transition:all .12s;
+    }
+    .btn-edit { background:var(--teal-bg); color:var(--teal); border-color:var(--teal-bg) }
+    .btn-edit:hover { border-color:var(--teal) }
+    .btn-del  { background:var(--red-bg); color:var(--red); border-color:var(--red-bg) }
+    .btn-del:hover  { border-color:var(--red) }
+
+    /* === BULK BAR === */
+    .bulk-bar {
+      background:var(--teal-bg); border:1.5px solid var(--teal);
+      border-radius:var(--radius); padding:10px 14px;
+      margin-bottom:10px; display:none; align-items:center;
+      gap:12px; flex-wrap:wrap;
+    }
+    .bulk-bar.show { display:flex }
+    .bulk-count-lbl { font-size:13px; font-weight:700; color:var(--teal); flex:1; min-width:120px }
+
+    /* === TABLE CHECKBOX === */
+    .th-cb { width:36px; text-align:center; padding:6px 4px !important }
+    .td-cb { padding:3px 6px; vertical-align:middle; text-align:center }
+    input[type=checkbox].emp-check {
+      width:15px; height:15px; cursor:pointer; accent-color:var(--teal)
+    }
+
+    /* === EXEC PANEL === */
+    .exec-grid {
+      display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
+      gap:12px; margin-bottom:20px;
+    }
+    .exec-card {
+      background:var(--white); border:1px solid var(--gray-200);
+      border-radius:var(--radius-lg); padding:16px 18px;
+    }
+    .ec-label { font-size:10px; font-weight:700; color:var(--gray-400);
+                text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px }
+    .ec-value { font-size:28px; font-weight:800; line-height:1; margin-bottom:4px }
+    .ec-sub   { font-size:11px; color:var(--gray-500) }
+    .ec-bar   { height:5px; background:var(--gray-200); border-radius:3px;
+                overflow:hidden; margin-top:12px }
+    .ec-barf  { height:100%; border-radius:3px }
+
+    /* === RANK ROW === */
+    .rank-num { width:24px; font-size:11px; font-weight:700;
+                color:var(--gray-400); flex-shrink:0; text-align:center }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================
+     LOGIN
+     ============================================================ -->
+<div id="v-login">
+  <div class="login-box">
+    <div class="login-logo">
+      <h1 id="login-logo-text">DP+ <span>Suite</span></h1>
+      <p>Controle de fechamento mensal</p>
+    </div>
+    <div class="login-field">
+      <label>E-mail</label>
+      <input type="email" id="li-email" placeholder="seu@email.com" autocomplete="email"/>
+    </div>
+    <div class="login-field">
+      <label>Senha</label>
+      <input type="password" id="li-pass" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <button class="btn btn-primary btn-login" id="btn-li" onclick="doLogin()">Entrar</button>
+    <div class="login-err hidden" id="li-err"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     APP
+     ============================================================ -->
+<div id="v-app" class="hidden">
+  <header>
+    <div class="hd-l">
+      <div class="hd-logo" id="hd-logo-text">DP+ <span>Suite</span></div>
+      <div class="hd-comp" id="hd-comp" onclick="toggleCompPicker()" title="Clique para trocar competência">—</div>
+    </div>
+    <div class="hd-r">
+      <div>
+        <div class="hd-name" id="hd-name">—</div>
+        <div style="text-align:right"><span class="hd-badge" id="hd-badge">—</span></div>
+      </div>
+      <button class="btn-sair" onclick="doLogout()">Sair</button>
+    </div>
+  </header>
+  <div id="comp-picker" class="hidden"></div>
+
+  <nav class="tabs hidden" id="tabs-gestor">
+    <button class="tab active" data-tab="dash" onclick="gTab(this)">Dashboard</button>
+    <button class="tab" data-tab="cart" onclick="gTab(this)">Carteiras</button>
+  </nav>
+
+  <nav class="tabs hidden" id="tabs-admin">
+    <button class="tab active" data-tab="comp"   onclick="aTab(this)">Competências</button>
+    <button class="tab"        data-tab="emp"    onclick="aTab(this)">Empresas</button>
+    <button class="tab"        data-tab="cart"   onclick="aTab(this)">Carteiras</button>
+    <button class="tab"        data-tab="import" onclick="aTab(this)">Importação</button>
+    <button class="tab"        data-tab="exec"   onclick="aTab(this)">Painel Executivo</button>
+    <button class="tab"        data-tab="dash"   onclick="aTab(this)">Visão Geral</button>
+  </nav>
+
+  <main>
+    <div id="v-analista" class="hidden"></div>
+    <div id="v-gestor"   class="hidden"></div>
+    <div id="v-admin"    class="hidden"></div>
+  </main>
+</div>
+
+<!-- Date modal -->
+<div class="overlay" id="modal-date">
+  <div class="modal">
+    <h3 id="md-title">Lançar data</h3>
+    <p id="md-sub">—</p>
+    <div id="md-no-badge" class="hidden" style="padding:8px 12px;background:var(--amber-bg);border-radius:var(--radius);margin-bottom:12px;font-size:12px;color:var(--amber);font-weight:600">
+      ⚠ Marcado como "Não ocorreu no mês"
+    </div>
+    <div class="field">
+      <label>Data de conclusão</label>
+      <input type="date" id="md-val"/>
+    </div>
+    <div class="mactions" style="flex-wrap:wrap;gap:6px">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-secondary" id="md-btn-clear" onclick="clearDate()" style="display:none;color:var(--red);border-color:#fca5a5">✕ Limpar</button>
+      <button class="btn btn-secondary" id="md-btn-no" onclick="saveNaoOcorreu()" style="color:var(--amber);border-color:#fcd34d">Não ocorreu</button>
+      <button class="btn btn-primary" onclick="saveDate()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add company modal -->
+<div class="overlay" id="modal-emp">
+  <div class="modal" style="max-width:440px">
+    <h3>Adicionar empresa</h3>
+    <p>Preencha os dados básicos. Demais campos podem ser editados no Supabase.</p>
+    <div class="frow">
+      <div class="fg" style="max-width:100px">
+        <label>Código</label>
+        <input type="number" id="ne-cod" placeholder="201"/>
+      </div>
+      <div class="fg">
+        <label>Razão Social</label>
+        <input type="text" id="ne-nm" placeholder="Empresa LTDA"/>
+      </div>
+    </div>
+    <div class="frow">
+      <div class="fg">
+        <label>Tipo</label>
+        <select id="ne-tipo">
+          <option value="Matriz">Matriz</option>
+          <option value="Filial">Filial</option>
+          <option value="Domestica">Doméstica</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Status</label>
+        <select id="ne-status">
+          <option value="ativo">Com movimento</option>
+          <option value="sem_movimento">Sem movimento</option>
+          <option value="encerrado">Encerrada / Inativa</option>
+        </select>
+      </div>
+    </div>
+    <div class="frow">
+      <div class="fg">
+        <label>Analista</label>
+        <select id="ne-anal"></select>
+      </div>
+      <div class="fg" style="max-width:90px">
+        <label>Funcionários</label>
+        <input type="number" id="ne-func" value="0" min="0"/>
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:14px">
+      <label>Data de início <span style="color:var(--red)">*</span></label>
+      <input type="date" id="ne-inicio"/>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <input type="checkbox" id="ne-adian" style="width:auto"/>
+      <span style="font-size:13px">Tem adiantamento</span>
+    </div>
+    <div class="mactions">
+      <button class="btn btn-secondary" onclick="closeEmpModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-ne" onclick="saveEmp()">Salvar empresa</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal inativação de empresa -->
+<div class="overlay" id="modal-inativar">
+  <div class="modal" style="max-width:380px">
+    <h3>Inativar empresa</h3>
+    <p id="inativar-nome" style="font-weight:600;color:var(--navy);margin-bottom:16px">—</p>
+    <div class="fg">
+      <label>Motivo</label>
+      <select id="inativar-motivo">
+        <option value="rescisao">Rescisão contratual</option>
+        <option value="encerramento">Encerramento da empresa</option>
+      </select>
+    </div>
+    <div class="fg" style="margin-top:12px">
+      <label>Data de encerramento</label>
+      <input type="date" id="inativar-data"/>
+    </div>
+    <p style="font-size:11px;color:var(--gray-400);margin-top:8px;margin-bottom:0">
+      A empresa não será incluída em competências futuras a partir desta data.
+    </p>
+    <div class="mactions" style="margin-top:16px">
+      <button class="btn btn-secondary" onclick="closeInativarModal()">Cancelar</button>
+      <button class="btn btn-danger"    onclick="confirmarInativacao()">Inativar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk analyst assignment modal -->
+<div class="overlay" id="modal-bulk">
+  <div class="modal" style="max-width:400px">
+    <h3>Atribuição em Lote</h3>
+    <p id="bulk-count-modal" style="font-weight:600;color:var(--navy);margin-bottom:16px">— empresas selecionadas</p>
+    <div class="fg" style="margin-bottom:20px">
+      <label>Novo Analista Responsável</label>
+      <select id="bulk-anal-select"></select>
+    </div>
+    <p style="font-size:11px;color:var(--gray-400);margin-bottom:16px">
+      Esta operação substituirá o analista atual de todas as empresas selecionadas. A ação não pode ser desfeita.
+    </p>
+    <div class="mactions">
+      <button class="btn btn-secondary" onclick="closeBulkModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-bulk-save" onclick="saveBulkAssignment()">Confirmar atribuição</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden"></div>
+
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+// ============================================================
+// CONFIG — substitua se mudar de projeto Supabase
+// ============================================================
+const SUPA_URL = 'https://lpktdwfwlrqzyrvxcuum.supabase.co';
+const SUPA_KEY = 'sb_publishable_6ohdnk6vaoiqtUC_Tq66OQ_wFV7evK0';
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ============================================================
+// IDENTIDADE DO PRODUTO — alterar a marca em um único lugar
+// ============================================================
+const APP_NAME = 'DP+ Suite';
+// slug para nomes de arquivo de exportação (ex.: dp+_suite → dp-suite)
+const APP_SLUG = APP_NAME.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+// Renderiza o logo com a última palavra destacada (ex.: "DP+ " + <span>Suite</span>)
+function renderBrand() {
+  document.title = APP_NAME;
+  const parts = APP_NAME.split(' ');
+  const last  = parts.pop();
+  const head  = parts.join(' ');
+  const html  = `${head ? head + ' ' : ''}<span>${last}</span>`;
+  const lg = document.getElementById('login-logo-text');
+  const hg = document.getElementById('hd-logo-text');
+  if (lg) lg.innerHTML = html;
+  if (hg) hg.innerHTML = html;
+}
+
+// ============================================================
+// ESTADO
+// ============================================================
+let ME        = null;   // { id, email }
+let PERFIL    = null;   // 'admin' | 'gestor' | 'analista'
+let NOME      = null;
+let COMP      = null;   // { id, mes, ano, status }  — competência ativa
+let COMPS     = [];     // todas as competências abertas
+let ATIVS     = [];     // catálogo das 12 atividades
+let ANALISTAS = [];     // lista de analistas
+
+// modal entregas
+let MODAL_ID  = null;
+let MODAL_OLD = null;
+let MODAL_NO  = false; // se a entrega está marcada como "não ocorreu"
+
+// modal empresa (add/edit)
+let EDIT_EMP_ID    = null; // null = novo, uuid = edição
+let INATIVAR_EMP_ID = null; // uuid da empresa em processo de inativação
+
+// filtros analista
+let F_ADIAN = 'todos'; // 'todos' | 'sim' | 'nao'
+let F_MOV   = 'todos'; // 'todos' | 'sim' | 'nao'
+
+// filtros carteiras (gestor/admin)
+let F_CART_ANAL   = 'todos'; // uuid | 'todos'
+let F_CART_ADIAN  = 'todos'; // 'todos' | 'sim' | 'nao'
+let F_CART_MOV    = 'todos'; // 'todos' | 'sim' | 'nao'
+
+// seleção múltipla para atribuição em lote
+let SELECTED_EMPS = new Set();
+
+// contexto do modal de data (para re-renderizar a view correta após salvar)
+let MODAL_ORIGIN = 'analista'; // 'analista' | 'admin-cart' | 'gestor-cart'
+
+// modo da aba de importação
+let IMPORT_MODE = 'empresas'; // 'empresas' | 'funcionarios'
+
+const MES_NOMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+// ============================================================
+// INIT
+// ============================================================
+async function init() {
+  renderBrand();
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { ME = session.user; await boot(); }
+
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && !ME) {
+      ME = session.user;
+      await boot();
+    } else if (event === 'SIGNED_OUT') {
+      ME = null; PERFIL = null;
+      show('v-login'); hide('v-app');
+    }
+  });
+}
+
+async function boot() {
+  // Busca perfil do usuário
+  const { data: u, error } = await sb
+    .from('usuarios')
+    .select('nome, perfil, ativo')
+    .eq('id', ME.id)
+    .single();
+
+  if (error || !u) {
+    toast('Usuário não encontrado. Contate o administrador.', 'err');
+    await sb.auth.signOut(); return;
+  }
+  if (!u.ativo) {
+    toast('Conta inativa. Contate o administrador.', 'err');
+    await sb.auth.signOut(); return;
+  }
+
+  PERFIL = u.perfil; NOME = u.nome;
+  MODAL_ORIGIN = 'analista'; // reset ao fazer login (evita contexto de sessão anterior)
+  F_CART_ANAL = 'todos'; F_CART_ADIAN = 'todos'; F_CART_MOV = 'todos';
+  SELECTED_EMPS.clear();
+  eid('hd-name').textContent  = u.nome;
+  eid('hd-badge').textContent = u.perfil;
+
+  // Carrega catálogo de atividades
+  const { data: as } = await sb
+    .from('atividades').select('*').eq('ativo', true).order('ordem');
+  ATIVS = as || [];
+
+  // Competência aberta mais recente
+  await loadComp();
+
+  // Carrega analistas (usado em admin e gestor)
+  const { data: al } = await sb
+    .from('usuarios').select('id, nome')
+    .eq('perfil', 'analista').eq('ativo', true).order('nome');
+  ANALISTAS = al || [];
+
+  hide('v-login');
+  show('v-app');
+
+  if (PERFIL === 'analista') {
+    hide('tabs-gestor'); hide('tabs-admin');
+    await renderAnalista();
+  } else if (PERFIL === 'gestor') {
+    show('tabs-gestor'); hide('tabs-admin');
+    setActiveTab('tabs-gestor', 'dash');
+    await renderGestor();
+  } else if (PERFIL === 'admin') {
+    hide('tabs-gestor'); show('tabs-admin');
+    setActiveTab('tabs-admin', 'comp');
+    await renderAdmin();
+  }
+}
+
+async function loadComp() {
+  const { data } = await sb
+    .from('competencias').select('*')
+    .in('status', ['aberta', 'concluida'])
+    .order('ano', { ascending: false })
+    .order('mes', { ascending: false });
+  COMPS = data || [];
+  // mantém a competência já selecionada se ainda existir, senão usa a mais recente
+  if (COMP && COMPS.find(c => c.id === COMP.id)) {
+    COMP = COMPS.find(c => c.id === COMP.id);
+  } else {
+    COMP = COMPS[0] || null;
+  }
+  updateCompHeader();
+}
+
+function updateCompHeader() {
+  const el = eid('hd-comp');
+  if (COMP) {
+    const arrow = COMPS.length > 1 ? ' <span style="font-size:9px;opacity:.55">▾</span>' : '';
+    const concl = COMP.status === 'concluida'
+      ? ' <span style="font-size:9px;background:rgba(34,211,238,.25);color:#22d3ee;padding:1px 6px;border-radius:8px;margin-left:2px">concluída</span>'
+      : '';
+    el.innerHTML = `Competência <strong>${MES_NOMES[COMP.mes - 1]}/${COMP.ano}</strong>${concl}${arrow}`;
+  } else {
+    el.textContent = 'Sem competência aberta';
+  }
+}
+
+function toggleCompPicker() {
+  if (COMPS.length <= 1) return;
+  const pk = eid('comp-picker');
+  if (pk.classList.contains('hidden')) {
+    pk.innerHTML = COMPS.map(c => {
+      const isConcl = c.status === 'concluida';
+      const tag = isConcl
+        ? '<span style="font-size:9px;color:var(--teal);background:var(--teal-bg);padding:1px 6px;border-radius:8px">concl.</span>'
+        : '';
+      return `
+      <div class="comp-pi ${COMP && c.id === COMP.id ? 'active' : ''}"
+           onclick="selectComp('${c.id}')">
+        <span>${MES_NOMES[c.mes-1]} / ${c.ano}</span>
+        ${COMP && c.id === COMP.id ? '<span class="check">✓</span>' : tag}
+      </div>`;
+    }).join('');
+    pk.classList.remove('hidden');
+  } else {
+    pk.classList.add('hidden');
+  }
+}
+
+async function selectComp(compId) {
+  const c = COMPS.find(x => x.id === compId);
+  if (!c) return;
+  COMP = c;
+  eid('comp-picker').classList.add('hidden');
+  updateCompHeader();
+  // re-renderiza a view atual
+  if (PERFIL === 'analista') { await renderAnalista(); }
+  else if (PERFIL === 'gestor') { await renderGestor(); }
+  else if (PERFIL === 'admin') {
+    const at = document.querySelector('#tabs-admin .tab.active');
+    if (at) aTab(at);
+  }
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+async function doLogin() {
+  const email = eid('li-email').value.trim();
+  const pass  = eid('li-pass').value;
+  const btn   = eid('btn-li');
+  if (!email || !pass) { loginErr('Preencha e-mail e senha.'); return; }
+
+  btn.disabled = true; btn.textContent = 'Entrando…';
+  eid('li-err').classList.add('hidden');
+
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    loginErr('E-mail ou senha incorretos.');
+    btn.disabled = false; btn.textContent = 'Entrar';
+  }
+}
+
+async function doLogout() { await sb.auth.signOut(); }
+
+function loginErr(msg) {
+  const el = eid('li-err');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+// ============================================================
+// ANALISTA VIEW
+// ============================================================
+async function renderAnalista() {
+  const el = eid('v-analista');
+  show('v-analista'); hide('v-gestor'); hide('v-admin');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Carregando sua carteira…</div>';
+
+  if (!COMP) {
+    el.innerHTML = `<div class="empty">
+      <h3>Nenhuma competência aberta</h3>
+      <p>Aguarde o administrador abrir a competência do mês para começar os lançamentos.</p>
+    </div>`;
+    return;
+  }
+
+  // Busca empresas onde o analista é responsável NESTA competência (histórico por competência)
+  const { data: ecMine } = await sb
+    .from('empresa_competencia')
+    .select('empresa_id')
+    .eq('competencia_id', COMP.id)
+    .eq('analista_id', ME.id);
+
+  let myEmpIds = (ecMine || []).map(x => x.empresa_id);
+
+  // Fallback: sem registro histórico (pré-migration), usa analista_id da empresa
+  if (!myEmpIds.length) {
+    const { data: fb } = await sb.from('empresas')
+      .select('id').eq('analista_id', ME.id);
+    myEmpIds = (fb || []).map(e => e.id);
+  }
+
+  if (!myEmpIds.length) {
+    el.innerHTML = `<div class="empty">
+      <h3>Nenhuma empresa na carteira</h3>
+      <p>Nenhuma empresa foi atribuída à sua conta nesta competência.<br>Contate o administrador.</p>
+    </div>`;
+    return;
+  }
+
+  const { data: rawEmps } = await sb
+    .from('empresas')
+    .select('id, codigo, razao_social, tipo_empresa, status, funcionarios, tem_adiantamento, data_inicio, data_fim')
+    .in('id', myEmpIds)
+    .order('codigo');
+
+  // Vigência: exibe apenas empresas ativas nesta competência
+  const compFirstDay = `${COMP.ano}-${String(COMP.mes).padStart(2,'0')}-01`;
+  const compLastDay  = new Date(COMP.ano, COMP.mes, 0).toISOString().split('T')[0];
+  const empsAll = (rawEmps || []).filter(e => {
+    const inicioOk = !e.data_inicio || e.data_inicio <= compLastDay;
+    const fimOk    = !e.data_fim    || e.data_fim    >= compFirstDay;
+    return inicioOk && fimOk;
+  });
+
+  if (!empsAll.length) {
+    el.innerHTML = `<div class="empty">
+      <h3>Nenhuma empresa na carteira</h3>
+      <p>Nenhuma empresa foi atribuída à sua conta ainda.<br>Contate o administrador.</p>
+    </div>`;
+    return;
+  }
+
+  const ids = empsAll.map(e => e.id);
+
+  // Dados históricos mensais da competência atual
+  const { data: ecList } = await sb
+    .from('empresa_competencia')
+    .select('empresa_id, tem_movimento, tem_adiantamento, funcionarios')
+    .eq('competencia_id', COMP.id)
+    .in('empresa_id', ids);
+
+  // Índice por empresa_id
+  const ecIdx = {};
+  (ecList || []).forEach(ec => { ecIdx[ec.empresa_id] = ec; });
+
+  // Aplica atributos mensais: fallback para dados estáticos da empresa
+  const empsComAtributos = empsAll.map(e => {
+    const ec = ecIdx[e.id];
+    return {
+      ...e,
+      _movimento:    ec ? ec.tem_movimento    : e.status !== 'sem_movimento',
+      _adiantamento: ec ? ec.tem_adiantamento : e.tem_adiantamento,
+      _funcionarios: ec ? ec.funcionarios     : e.funcionarios
+    };
+  });
+
+  // aplicar filtros usando atributos mensais
+  let emps = empsComAtributos;
+  if (F_ADIAN === 'sim') emps = emps.filter(e => e._adiantamento);
+  if (F_ADIAN === 'nao') emps = emps.filter(e => !e._adiantamento);
+  if (F_MOV   === 'sim') emps = emps.filter(e => e._movimento);
+  if (F_MOV   === 'nao') emps = emps.filter(e => !e._movimento);
+
+  const ids2 = empsAll.map(e => e.id);
+  const { data: ents } = await sb
+    .from('entregas')
+    .select('id, empresa_id, atividade_id, data_conclusao, nt, nao_ocorreu')
+    .eq('competencia_id', COMP.id)
+    .in('empresa_id', ids2);
+
+  const idx = {};
+  (ents || []).forEach(e => { idx[e.empresa_id + '|' + e.atividade_id] = e; });
+
+  // stats sobre emps filtradas
+  let tot = 0, done = 0;
+  emps.forEach(emp => {
+    (ents || []).filter(e => e.empresa_id === emp.id && !e.nt).forEach(e => {
+      tot++; if (e.data_conclusao || e.nao_ocorreu) done++;
+    });
+  });
+  const pct = tot > 0 ? Math.round(done / tot * 100) : 0;
+
+  // Vidas administradas = soma de funcionários (mensal) das empresas filtradas
+  const vidas = emps.reduce((s, e) => s + (e._funcionarios || 0), 0);
+
+  const thAtvs = ATIVS.map(a => `<th title="${a.nome}">${a.label_curto}</th>`).join('');
+
+  const rows = emps.map(emp => {
+    const cells = ATIVS.map(atv => {
+      const ent = idx[emp.id + '|' + atv.id];
+      if (!ent || ent.nt) return `<td class="ac"><span class="chip c-nt">—</span></td>`;
+
+      if (ent.nao_ocorreu) {
+        return `<td class="ac"><span class="chip c-no"
+          data-id="${ent.id || ''}" data-dt="" data-no="true"
+          data-emp="${escAttr(emp.razao_social)}" data-atv="${escAttr(atv.nome)}"
+          onclick="openDate(this)" title="${atv.nome} · não ocorreu no mês">N/O</span></td>`;
+      }
+
+      if (ent.data_conclusao) {
+        const [y, m, d] = ent.data_conclusao.split('-');
+        const fmt = `${d}/${m}`;
+        return `<td class="ac"><span class="chip c-ok"
+          data-id="${ent.id || ''}" data-dt="${ent.data_conclusao}" data-no="false"
+          data-emp="${escAttr(emp.razao_social)}" data-atv="${escAttr(atv.nome)}"
+          onclick="openDate(this)" title="${atv.nome} · concluído ${fmt}">${fmt}</span></td>`;
+      }
+
+      return `<td class="ac"><span class="chip c-pend"
+        data-id="${ent.id || ''}" data-dt="" data-no="false"
+        data-emp="${escAttr(emp.razao_social)}" data-atv="${escAttr(atv.nome)}"
+        onclick="openDate(this)" title="${atv.nome} · pendente">+</span></td>`;
+    }).join('');
+
+    const smov = !emp._movimento;
+    const nm = emp.razao_social.length > 26
+      ? emp.razao_social.slice(0, 26) + '…' : emp.razao_social;
+
+    return `<tr class="${smov ? 'smov' : ''}">
+      <td class="co">
+        <div class="co-nm"><span class="co-code">${emp.codigo} · </span>${escHtml(nm)}</div>
+        <div class="co-meta">${emp._funcionarios} func · ${emp.tipo_empresa}${smov ? ' · sem mov.' : ''}${emp._adiantamento ? ' · adiant.' : ''}</div>
+      </td>${cells}</tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="sumbar" id="sumbar">
+      <div class="stat"><div class="n" style="color:var(--green)">${done}</div><div class="l">concluídas</div></div>
+      <div class="sdiv"></div>
+      <div class="stat"><div class="n" style="color:var(--red)">${tot - done}</div><div class="l">pendentes</div></div>
+      <div class="sdiv"></div>
+      <div class="stat"><div class="n">${emps.length}</div><div class="l">empresas</div></div>
+      <div class="sdiv"></div>
+      <div class="stat"><div class="n" style="color:var(--blue)">${vidas}</div><div class="l">vidas</div></div>
+      <div class="sdiv"></div>
+      <div class="progw">
+        <div class="prog"><div class="progf" style="width:${pct}%"></div></div>
+        <span class="progt">${pct}%</span>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <span class="fl">Adiantamento:</span>
+      <button class="fbtn ${F_ADIAN==='todos'?'on':''}" onclick="setFiltro('adian','todos')">Todos</button>
+      <button class="fbtn ${F_ADIAN==='sim'?'on':''}"   onclick="setFiltro('adian','sim')">Com adiant.</button>
+      <button class="fbtn ${F_ADIAN==='nao'?'on':''}"   onclick="setFiltro('adian','nao')">Sem adiant.</button>
+      <span class="fl" style="margin-left:8px">Movimento:</span>
+      <button class="fbtn ${F_MOV==='todos'?'on':''}" onclick="setFiltro('mov','todos')">Todos</button>
+      <button class="fbtn ${F_MOV==='sim'?'on':''}"   onclick="setFiltro('mov','sim')">Com mov.</button>
+      <button class="fbtn ${F_MOV==='nao'?'on':''}"   onclick="setFiltro('mov','nao')">Sem mov.</button>
+    </div>
+    <div class="search-bar">
+      <input type="text" placeholder="Buscar empresa…" oninput="filterRows(this.value)"/>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th class="co">Empresa</th>${thAtvs}</tr></thead>
+        <tbody id="tbody">${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function setFiltro(tipo, val) {
+  if (tipo === 'adian') F_ADIAN = val;
+  if (tipo === 'mov')   F_MOV   = val;
+  renderAnalista();
+}
+
+function filterRows(q) {
+  const s = q.toLowerCase();
+  document.querySelectorAll('#tbody tr').forEach(tr => {
+    const nm = tr.querySelector('.co-nm')?.textContent.toLowerCase() || '';
+    tr.style.display = nm.includes(s) ? '' : 'none';
+  });
+}
+
+// ============================================================
+// MODAL DE DATA
+// ============================================================
+function openDate(el) {
+  MODAL_ID  = el.dataset.id;
+  MODAL_OLD = el.dataset.dt;
+  MODAL_NO  = el.dataset.no === 'true';
+  eid('md-title').textContent = el.dataset.atv;
+  eid('md-sub').textContent   = el.dataset.emp;
+  const today = new Date().toISOString().split('T')[0];
+  eid('md-val').value = el.dataset.dt || today;
+  // Botão Limpar: aparece quando já tem data ou está marcado como não ocorreu
+  eid('md-btn-clear').style.display = (el.dataset.dt || MODAL_NO) ? '' : 'none';
+  // Botão Não Ocorreu: oculta se já está marcado como tal
+  eid('md-btn-no').style.display = MODAL_NO ? 'none' : '';
+  // Badge de aviso
+  if (MODAL_NO) eid('md-no-badge').classList.remove('hidden');
+  else          eid('md-no-badge').classList.add('hidden');
+  eid('modal-date').classList.add('show');
+}
+
+function closeModal() {
+  eid('modal-date').classList.remove('show');
+  MODAL_ID = null;
+  MODAL_NO = false;
+}
+
+async function saveDate() {
+  const dt = eid('md-val').value;
+  if (!dt || !MODAL_ID || MODAL_ID === 'null' || MODAL_ID === '') {
+    toast('ID de entrega inválido. Recarregue a página e tente novamente.', 'err');
+    closeModal();
+    return;
+  }
+
+  const entregaId = MODAL_ID; // captura antes do closeModal zerar MODAL_ID
+  closeModal();
+
+  const { error } = await sb.from('entregas').update({
+    data_conclusao: dt,
+    nao_ocorreu: false,
+    usuario_id: ME.id,
+    updated_at: new Date().toISOString()
+  }).eq('id', entregaId);
+
+  if (error) { toast('Erro ao salvar: ' + error.message, 'err'); return; }
+
+  toast('Data registrada!', 'ok');
+  await _reRender();
+  await checkCompConcluida();
+}
+
+// ============================================================
+// LIMPAR DATA / NÃO OCORREU / AUTO-CONCLUSÃO
+// ============================================================
+async function clearDate() {
+  if (!MODAL_ID || MODAL_ID === 'null' || MODAL_ID === '') {
+    toast('ID de entrega inválido.', 'err'); closeModal(); return;
+  }
+  const entregaId = MODAL_ID;
+  closeModal();
+  const { error } = await sb.from('entregas').update({
+    data_conclusao: null,
+    nao_ocorreu: false,
+    usuario_id: ME.id,
+    updated_at: new Date().toISOString()
+  }).eq('id', entregaId);
+  if (error) { toast('Erro ao limpar: ' + error.message, 'err'); return; }
+  toast('Lançamento removido.', 'inf');
+  await _reRender();
+  await checkCompConcluida();
+}
+
+async function saveNaoOcorreu() {
+  if (!MODAL_ID || MODAL_ID === 'null' || MODAL_ID === '') {
+    toast('ID de entrega inválido.', 'err'); closeModal(); return;
+  }
+  const entregaId = MODAL_ID;
+  closeModal();
+  const { error } = await sb.from('entregas').update({
+    data_conclusao: null,
+    nao_ocorreu: true,
+    usuario_id: ME.id,
+    updated_at: new Date().toISOString()
+  }).eq('id', entregaId);
+  if (error) { toast('Erro ao registrar: ' + error.message, 'err'); return; }
+  toast('Atividade marcada como "Não ocorreu".', 'ok');
+  await _reRender();
+  await checkCompConcluida();
+}
+
+async function checkCompConcluida() {
+  if (!COMP) return;
+  const { data: all } = await sb.from('entregas')
+    .select('id, data_conclusao, nao_ocorreu, nt')
+    .eq('competencia_id', COMP.id)
+    .eq('nt', false);
+  if (!all?.length) return;
+  const allDone = all.every(e => e.data_conclusao || e.nao_ocorreu);
+
+  if (allDone && COMP.status !== 'concluida') {
+    const { error } = await sb.from('competencias')
+      .update({ status: 'concluida' }).eq('id', COMP.id);
+    if (!error) {
+      toast('🎉 Competência concluída!', 'ok');
+      await loadComp();
+    }
+  } else if (!allDone && COMP.status === 'concluida') {
+    // Correção reabriu pendências: volta para "aberta" para manter o status coerente
+    const { error } = await sb.from('competencias')
+      .update({ status: 'aberta' }).eq('id', COMP.id);
+    if (!error) {
+      toast('Competência reaberta — há atividades pendentes novamente.', 'inf');
+      await loadComp();
+    }
+  }
+}
+
+// ============================================================
+// GESTOR VIEW
+// ============================================================
+async function renderGestor() {
+  const isAdmin = PERFIL === 'admin';
+  const elId = isAdmin ? 'v-admin' : 'v-gestor';
+  const el = eid(elId);
+  if (isAdmin) { show('v-admin'); hide('v-analista'); hide('v-gestor'); }
+  else         { show('v-gestor'); hide('v-analista'); hide('v-admin'); }
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Carregando dashboard…</div>';
+
+  if (!COMP) {
+    el.innerHTML = `<div class="empty">
+      <h3>Nenhuma competência aberta</h3>
+      <p>Vá em Administração → Competências para abrir o mês atual.</p>
+    </div>`;
+    return;
+  }
+
+  const { data: ents, error } = await sb
+    .from('entregas')
+    .select(`
+      id, empresa_id, atividade_id, data_conclusao, nt, nao_ocorreu,
+      empresas ( id, codigo, razao_social, analista_id, tipo_empresa, status, funcionarios, data_inicio, data_fim ),
+      atividades ( id, nome, label_curto, grupo, tipo_prazo, alerta_horas )
+    `)
+    .eq('competencia_id', COMP.id);
+
+  if (error) {
+    el.innerHTML = `<div class="empty"><h3>Erro ao carregar</h3><p>${error.message}</p></div>`;
+    return;
+  }
+
+  const all   = ents || [];
+  const gFirstDay = `${COMP.ano}-${String(COMP.mes).padStart(2,'0')}-01`;
+  const gLastDay  = new Date(COMP.ano, COMP.mes, 0).toISOString().split('T')[0];
+  const aplic = all.filter(e => {
+    if (e.nt) return false;
+    const emp = e.empresas;
+    if (!emp) return false;
+    const inicioOk = !emp.data_inicio || emp.data_inicio <= gLastDay;
+    const fimOk    = !emp.data_fim    || emp.data_fim    >= gFirstDay;
+    return inicioOk && fimOk;
+  });
+
+  function grp(grupo) {
+    const g = aplic.filter(e => e.atividades?.grupo === grupo);
+    const done = g.filter(e => e.data_conclusao || e.nao_ocorreu).length;
+    return { tot: g.length, done, pend: g.length - done, items: g,
+             pct: g.length > 0 ? Math.round(done / g.length * 100) : 0 };
+  }
+
+  const ga = grp('adiantamento');
+  const gp = grp('pagamento');
+
+  // busca por nome de atividade para DARF e FGTS (independe do grupo)
+  const gdItems = aplic.filter(e => e.atividades?.nome?.toLowerCase().includes('darf'));
+  const gfItems = aplic.filter(e => e.atividades?.nome?.toLowerCase().includes('fgts'));
+
+  function calcGroup(items) {
+    const done = items.filter(e => e.data_conclusao || e.nao_ocorreu).length;
+    return { tot: items.length, done, pend: items.length - done, items,
+             pct: items.length > 0 ? Math.round(done / items.length * 100) : 0 };
+  }
+  const darf = calcGroup(gdItems);
+  const fgts = calcGroup(gfItems);
+
+  const pCol = p => p < 40 ? 'var(--red)' : p < 70 ? 'var(--amber)' : 'var(--green)';
+
+  // guarda referência para drill-down
+  window._gestorData = { ga, gp, darf, fgts, aplic };
+
+  function kcard(lbl, data, isAlert, key) {
+    const col = isAlert && data.pend > 0 ? 'var(--red)' : pCol(data.pct);
+    const label = isAlert ? 'guias' : 'atividades';
+    // contar empresas únicas pendentes
+    const pendEmps = new Set(data.items.filter(e => !e.data_conclusao).map(e => e.empresa_id)).size;
+    return `<div class="kcard${isAlert && data.pend > 0 ? ' kal' : ''}"
+              style="cursor:pointer" onclick="showCardDetail('${key}')" title="Clique para ver detalhes">
+      <div class="kl">${lbl}</div>
+      <div class="kn" style="color:${col}">${data.pct}%</div>
+      <div class="ks" style="color:${data.pend > 0 ? 'var(--red)' : 'var(--gray-400)'}">${data.pend} ${label} pendentes</div>
+      <div class="ks2">${pendEmps > 0 ? pendEmps + ' empresas · ' : ''}${data.done} de ${data.tot} concluídas</div>
+      <div class="kbar"><div class="kbf" style="width:${data.pct}%;background:${col}"></div></div>
+    </div>`;
+  }
+
+  const anRows = ANALISTAS.map(a => {
+    const ae   = aplic.filter(e => e.empresas?.analista_id === a.id);
+    const done = ae.filter(e => e.data_conclusao || e.nao_ocorreu).length;
+    const tot  = ae.length;
+    const pct  = tot > 0 ? Math.round(done / tot * 100) : 0;
+    const emps = new Set(ae.map(e => e.empresa_id)).size;
+    return `<div class="arow">
+      <div>
+        <div class="aname">${escHtml(a.nome)}</div>
+        <div class="ameta">${emps} emp · ${done}/${tot} atividades</div>
+      </div>
+      <div class="apw">
+        <div class="ap"><div class="apf" style="width:${pct}%;background:${pCol(pct)}"></div></div>
+        <span class="apct" style="color:${pCol(pct)}">${pct}%</span>
+      </div>
+    </div>`;
+  }).sort((a, b) => {
+    const pA = parseInt(a.match(/(\d+)%/)?.[1] || '0');
+    const pB = parseInt(b.match(/(\d+)%/)?.[1] || '0');
+    return pA - pB;
+  }).join('');
+
+  const noAnalistas = ANALISTAS.length === 0
+    ? '<p style="font-size:13px;color:var(--gray-400)">Nenhum analista cadastrado ainda.</p>'
+    : (anRows || '<p style="font-size:13px;color:var(--gray-400)">Nenhum analista com atividades nesta competência.</p>');
+
+  el.innerHTML = `
+    <div class="kgrid" id="kgrid">
+      ${kcard('Adiantamento', ga, false, 'adiantamento')}
+      ${kcard('Pagamento', gp, false, 'pagamento')}
+      ${kcard('DARF Previdenciária', darf, true, 'darf')}
+      ${kcard('FGTS Digital', fgts, true, 'fgts')}
+    </div>
+    <div id="card-detail-area"></div>
+    <div class="card">
+      <div class="stitle">Progresso por analista — menor conclusão primeiro</div>
+      ${noAnalistas}
+    </div>`;
+}
+
+function showCardDetail(key) {
+  const d = window._gestorData;
+  if (!d) return;
+  const map = { adiantamento: d.ga, pagamento: d.gp, darf: d.darf, fgts: d.fgts };
+  const grpData = map[key];
+  if (!grpData) return;
+
+  const area = eid('card-detail-area');
+  if (area.dataset.open === key) { area.innerHTML = ''; area.dataset.open = ''; return; }
+  area.dataset.open = key;
+
+  const lblMap = { adiantamento:'Adiantamento', pagamento:'Pagamento',
+                   darf:'DARF Previdenciária', fgts:'FGTS Digital' };
+
+  const pendItems = grpData.items.filter(e => !e.data_conclusao && !e.nao_ocorreu);
+  if (!pendItems.length) {
+    area.innerHTML = `<div class="card-detail"><h4>${lblMap[key]} — Tudo concluído ✓</h4></div>`;
+    return;
+  }
+
+  // agrupa por empresa
+  const byEmp = {};
+  pendItems.forEach(e => {
+    const k = e.empresa_id;
+    if (!byEmp[k]) byEmp[k] = { emp: e.empresas, atvs: [] };
+    byEmp[k].atvs.push(e.atividades?.label_curto || e.atividades?.nome || '?');
+  });
+
+  const rows = Object.values(byEmp).map(x => {
+    const nm = x.emp ? `${x.emp.codigo} · ${x.emp.razao_social}` : '?';
+    const an = ANALISTAS.find(a => a.id === x.emp?.analista_id);
+    return `<div class="cd-row">
+      <div>
+        <div class="cd-name">${escHtml(nm)}</div>
+        <div class="cd-atv">${x.atvs.join(' · ')}${an ? ' · ' + escHtml(an.nome.split(' ')[0]) : ''}</div>
+      </div>
+      <span class="tag tag-closed">${x.atvs.length} pend.</span>
+    </div>`;
+  }).join('');
+
+  area.innerHTML = `<div class="card-detail">
+    <h4>${lblMap[key]} — ${pendItems.length} atividades pendentes em ${Object.keys(byEmp).length} empresas
+      <button onclick="showCardDetail('${key}')" style="float:right;background:none;border:none;cursor:pointer;font-size:12px;color:var(--gray-400)">✕ fechar</button>
+    </h4>
+    ${rows}
+  </div>`;
+}
+
+function gTab(btn) {
+  setActiveTab('tabs-gestor', btn.dataset.tab);
+  if (btn.dataset.tab === 'dash') renderGestor();
+  else renderGestorCart();
+}
+
+// ============================================================
+// ADMIN VIEW
+// ============================================================
+async function renderAdmin() {
+  const el = eid('v-admin');
+  show('v-admin'); hide('v-analista'); hide('v-gestor');
+  renderAdminComp();
+}
+
+async function renderAdminComp() {
+  const el = eid('v-admin');
+  const now = new Date();
+  const mesOpts = MES_NOMES.map((m, i) =>
+    `<option value="${i+1}" ${i+1 === now.getMonth()+1 ? 'selected' : ''}>${m}</option>`
+  ).join('');
+  const anoOpts = [2024,2025,2026,2027].map(a =>
+    `<option value="${a}" ${a === now.getFullYear() ? 'selected' : ''}>${a}</option>`
+  ).join('');
+
+  el.innerHTML = `
+    <div class="acard">
+      <h3>Abrir competência</h3>
+      <p>Selecione o mês e ano. O sistema gerará automaticamente todos os registros com a lógica de NT aplicada.</p>
+      <div class="frow">
+        <div class="fg"><label>Mês</label><select id="adm-mes">${mesOpts}</select></div>
+        <div class="fg"><label>Ano</label><select id="adm-ano">${anoOpts}</select></div>
+      </div>
+      <button class="btn btn-primary" id="btn-abrir" onclick="abrirComp()"
+        style="padding:9px 22px">Abrir competência</button>
+    </div>
+    <div class="acard">
+      <h3>Competências no sistema</h3>
+      <p>Histórico de períodos abertos.</p>
+      <div id="comp-list"><div class="loading"><div class="spinner"></div></div></div>
+    </div>`;
+  loadCompList();
+}
+
+async function loadCompList() {
+  const { data } = await sb.from('competencias').select('*')
+    .order('ano', { ascending: false })
+    .order('mes', { ascending: false });
+  const el = eid('comp-list');
+  if (!data?.length) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--gray-400)">Nenhuma competência aberta ainda.</p>';
+    return;
+  }
+  el.innerHTML = data.map(c => {
+    const tagClass = c.status === 'aberta' ? 'tag-open' : c.status === 'concluida' ? 'tag-concluida' : 'tag-closed';
+    const tagLabel = c.status === 'aberta' ? 'Aberta' : c.status === 'concluida' ? 'Concluída ✓' : c.status;
+    const canDel   = c.status === 'aberta';
+    return `
+    <div class="comp-item">
+      <span class="comp-mes">${MES_NOMES[c.mes-1]} / ${c.ano}</span>
+      <span class="tag ${tagClass}">${tagLabel}</span>
+      ${canDel ? `<button class="btn-xs btn-del" onclick="deletarComp('${c.id}','${MES_NOMES[c.mes-1]}/${c.ano}')" style="margin-left:auto">Excluir</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function abrirComp() {
+  const mes = parseInt(eid('adm-mes').value);
+  const ano = parseInt(eid('adm-ano').value);
+  if (!confirm(`Abrir competência ${MES_NOMES[mes-1]}/${ano}?\n\nIsso gerará todos os registros de entrega automaticamente.`)) return;
+
+  const btn = eid('btn-abrir');
+  btn.disabled = true; btn.textContent = 'Abrindo…';
+
+  const { error } = await sb.rpc('abrir_competencia', { p_mes: mes, p_ano: ano });
+
+  btn.disabled = false; btn.textContent = 'Abrir competência';
+
+  if (error) { toast(error.message, 'err'); return; }
+
+  toast(`Competência ${MES_NOMES[mes-1]}/${ano} aberta!`, 'ok');
+  await loadComp();
+  await loadCompList();
+}
+
+async function deletarComp(id, label) {
+  if (!confirm(`Excluir competência ${label}?\n\nTodos os registros de entrega sem baixa serão removidos.\n\nEssa ação não pode ser desfeita.`)) return;
+  const btn = event?.target;
+  if (btn) { btn.disabled = true; btn.textContent = 'Excluindo…'; }
+  const { error } = await sb.rpc('excluir_competencia', { p_comp_id: id });
+  if (error) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Excluir'; }
+    toast(error.message, 'err');
+    return;
+  }
+  toast(`Competência ${label} excluída.`, 'ok');
+  await loadComp();
+  await loadCompList();
+}
+
+async function renderAdminEmp() {
+  const el = eid('v-admin');
+  show('v-admin'); hide('v-analista'); hide('v-gestor');
+
+  const { data: emps } = await sb.from('empresas').select(
+    'id, codigo, razao_social, tipo_empresa, status, motivo_inativacao, funcionarios, analista_id, tem_adiantamento, data_inicio, data_fim'
+  ).order('codigo');
+
+  const rows = (emps || []).map(e => {
+    const an  = ANALISTAS.find(a => a.id === e.analista_id);
+    const enc = e.status === 'encerrado';
+    const stLabel =
+      e.status === 'ativo'         ? 'Ativa' :
+      e.status === 'sem_movimento' ? 'Sem mov.' :
+      e.motivo_inativacao === 'rescisao'     ? 'Rescisão' :
+      e.motivo_inativacao === 'encerramento' ? 'Encerrada' : 'Inativa';
+    const tagClass = e.status === 'ativo' ? 'tag-open' : 'tag-closed';
+    const actionBtns = enc
+      ? `<button class="btn-xs btn-edit" onclick="reativarEmp('${e.id}','${escAttr(e.razao_social)}')">Reativar</button>
+         <button class="btn-xs" onclick="deleteEmpFisico('${e.id}','${escAttr(e.razao_social)}')" style="margin-left:4px;color:var(--gray-400);border:1.5px solid var(--gray-200);background:var(--white)" title="Excluir definitivamente">✕</button>`
+      : `<button class="btn-xs btn-edit" onclick="editEmp('${e.id}')">Editar</button>
+         <button class="btn-xs btn-del" onclick="deleteEmp('${e.id}','${escAttr(e.razao_social)}')" style="margin-left:4px">Inativar</button>
+         <button class="btn-xs" onclick="deleteEmpFisico('${e.id}','${escAttr(e.razao_social)}')" style="margin-left:4px;color:var(--gray-400);border:1.5px solid var(--gray-200);background:var(--white)" title="Excluir definitivamente">✕</button>`;
+    return `<tr style="${enc ? 'opacity:.45' : ''}">
+      <td style="padding:6px 8px"><span class="co-code">${e.codigo}</span></td>
+      <td style="font-size:12px;padding:6px 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(e.razao_social)}</td>
+      <td style="font-size:12px;padding:6px 8px">${e.tipo_empresa}</td>
+      <td style="padding:6px 8px"><span class="tag ${tagClass}" style="font-size:10px">${stLabel}</span></td>
+      <td style="font-size:12px;padding:6px 8px">${e.funcionarios}</td>
+      <td style="font-size:12px;padding:6px 8px">${e.tem_adiantamento ? '✓' : '—'}</td>
+      <td style="font-size:12px;padding:6px 8px">${fmtDate(e.data_inicio)}</td>
+      <td style="font-size:12px;padding:6px 8px">${fmtDate(e.data_fim)}</td>
+      <td style="font-size:12px;padding:6px 8px">${an ? an.nome.split(' ')[0] : '—'}</td>
+      <td style="padding:6px 8px;white-space:nowrap">${actionBtns}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="acard" style="max-width:100%">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+        <div><h3>Empresas cadastradas</h3><p style="margin-top:4px">${(emps||[]).length} registros</p></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="exportEmps()" style="padding:7px 14px;font-size:12px">⬇ Exportar Excel</button>
+          <button class="btn btn-primary" onclick="openEmpModal()" style="padding:7px 16px;font-size:12px">+ Adicionar empresa</button>
+        </div>
+      </div>
+      <div class="tbl-wrap" style="max-height:calc(100vh - 220px)">
+        <table style="font-size:12px;width:100%">
+          <thead>
+            <tr>
+              ${['Cód.','Razão Social','Tipo','Status','Func.','Adiant.','Início','Fim','Analista','Ações'].map(h =>
+                `<th style="text-align:left;padding:7px 8px;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;background:#f6f8fa">${h}</th>`
+              ).join('')}
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="8" style="padding:20px;text-align:center;color:#6b7280">Nenhuma empresa cadastrada ainda.</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  window._adminEmps = emps || [];
+}
+
+function exportEmps() {
+  const emps = window._adminEmps || [];
+  if (!emps.length) { toast('Nenhuma empresa para exportar.', 'inf'); return; }
+  if (typeof XLSX === 'undefined') { toast('Biblioteca Excel não carregada. Recarregue a página.', 'err'); return; }
+
+  const stLabel = e =>
+    e.status === 'ativo'         ? 'Com movimento' :
+    e.status === 'sem_movimento' ? 'Sem movimento' :
+    e.motivo_inativacao === 'rescisao'     ? 'Rescisão' :
+    e.motivo_inativacao === 'encerramento' ? 'Encerrada' : 'Inativa';
+
+  const aoa = [
+    ['Código','Razão Social','Tipo','Status','Funcionários','Tem Adiantamento','Data Início','Data Fim','Analista']
+  ];
+  emps.forEach(e => {
+    const an = ANALISTAS.find(a => a.id === e.analista_id);
+    aoa.push([
+      e.codigo, e.razao_social || '', e.tipo_empresa, stLabel(e),
+      e.funcionarios || 0, e.tem_adiantamento ? 'Sim' : 'Não',
+      e.data_inicio ? e.data_inicio.split('-').reverse().join('/') : '',
+      e.data_fim ? e.data_fim.split('-').reverse().join('/') : '',
+      an ? an.nome : ''
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:8},{wch:38},{wch:10},{wch:16},{wch:12},{wch:16},{wch:12},{wch:12},{wch:24}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Empresas');
+  XLSX.writeFile(wb, `${APP_SLUG}_empresas_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('Planilha exportada!', 'ok');
+}
+
+async function editEmp(id) {
+  const { data: e } = await sb.from('empresas').select('*').eq('id', id).single();
+  if (!e) { toast('Empresa não encontrada.', 'err'); return; }
+  EDIT_EMP_ID = id;
+  eid('ne-cod').value     = e.codigo;
+  eid('ne-nm').value      = e.razao_social;
+  eid('ne-tipo').value    = e.tipo_empresa;
+  eid('ne-status').value  = e.status;
+  eid('ne-func').value    = e.funcionarios;
+  eid('ne-adian').checked = e.tem_adiantamento;
+  eid('ne-inicio').value  = e.data_inicio || '';
+  const sel = eid('ne-anal');
+  sel.innerHTML = ANALISTAS.map(a =>
+    `<option value="${a.id}" ${a.id === e.analista_id ? 'selected' : ''}>${escHtml(a.nome)}</option>`
+  ).join('');
+  eid('modal-emp').querySelector('h3').textContent = 'Editar empresa';
+  eid('btn-ne').textContent = 'Salvar alterações';
+  eid('modal-emp').classList.add('show');
+}
+
+async function deleteEmp(id, nome) {
+  INATIVAR_EMP_ID = id;
+  eid('inativar-nome').textContent = nome;
+  eid('inativar-data').value = new Date().toISOString().split('T')[0];
+  eid('inativar-motivo').value = 'rescisao';
+  eid('modal-inativar').classList.add('show');
+}
+
+function closeInativarModal() {
+  INATIVAR_EMP_ID = null;
+  eid('modal-inativar').classList.remove('show');
+}
+
+async function confirmarInativacao() {
+  if (!INATIVAR_EMP_ID) return;
+  const motivo = eid('inativar-motivo').value;
+  const data   = eid('inativar-data').value;
+  if (!data) { toast('Informe a data de encerramento.', 'err'); return; }
+  const { error } = await sb.from('empresas').update({
+    status: 'encerrado',
+    data_fim: data,
+    motivo_inativacao: motivo
+  }).eq('id', INATIVAR_EMP_ID);
+  if (error) { toast('Erro ao inativar: ' + error.message, 'err'); return; }
+  toast('Empresa inativada.', 'ok');
+  closeInativarModal();
+  await renderAdminEmp();
+}
+
+async function reativarEmp(id, nome) {
+  if (!confirm(`Reativar "${nome}"?`)) return;
+  const { error } = await sb.from('empresas').update({ status: 'ativo' }).eq('id', id);
+  if (error) { toast('Erro ao reativar: ' + error.message, 'err'); return; }
+  toast('Empresa reativada.', 'ok');
+  await renderAdminEmp();
+}
+
+function aTab(btn) {
+  setActiveTab('tabs-admin', btn.dataset.tab);
+  if      (btn.dataset.tab === 'comp')   renderAdminComp();
+  else if (btn.dataset.tab === 'emp')    renderAdminEmp();
+  else if (btn.dataset.tab === 'cart')   renderAdminCart();
+  else if (btn.dataset.tab === 'import') renderAdminImport();
+  else if (btn.dataset.tab === 'exec')   renderExec();
+  else if (btn.dataset.tab === 'dash')   renderGestor();
+}
+
+// ============================================================
+// MODAL: ADICIONAR / EDITAR EMPRESA
+// ============================================================
+function openEmpModal() {
+  EDIT_EMP_ID = null;
+  eid('ne-cod').value = ''; eid('ne-nm').value = '';
+  eid('ne-func').value = '0'; eid('ne-adian').checked = false;
+  eid('ne-tipo').value = 'Matriz'; eid('ne-status').value = 'ativo';
+  eid('ne-inicio').value = new Date().toISOString().split('T')[0]; // default hoje
+  const sel = eid('ne-anal');
+  sel.innerHTML = ANALISTAS.map(a => `<option value="${a.id}">${escHtml(a.nome)}</option>`).join('');
+  eid('modal-emp').querySelector('h3').textContent = 'Adicionar empresa';
+  eid('btn-ne').textContent = 'Salvar empresa';
+  eid('modal-emp').classList.add('show');
+}
+
+function closeEmpModal() {
+  EDIT_EMP_ID = null;
+  eid('modal-emp').classList.remove('show');
+}
+
+async function saveEmp() {
+  const cod    = parseInt(eid('ne-cod').value);
+  const nm     = eid('ne-nm').value.trim();
+  const tipo   = eid('ne-tipo').value;
+  const stat   = eid('ne-status').value;
+  const anal   = eid('ne-anal').value;
+  const func   = parseInt(eid('ne-func').value) || 0;
+  const adi    = eid('ne-adian').checked;
+  const inicio = eid('ne-inicio').value;
+
+  if (!cod || !nm)    { toast('Código e razão social são obrigatórios.', 'err'); return; }
+  if (!inicio)        { toast('Data de início é obrigatória.', 'err'); return; }
+
+  const btn = eid('btn-ne');
+  btn.disabled = true; btn.textContent = 'Salvando…';
+
+  const payload = {
+    codigo: cod, razao_social: nm,
+    tipo_empresa: tipo, status: stat,
+    analista_id: anal || null,
+    funcionarios: func,
+    tem_adiantamento: adi,
+    data_inicio: inicio
+  };
+
+  let error;
+  if (EDIT_EMP_ID) {
+    ({ error } = await sb.from('empresas').update(payload).eq('id', EDIT_EMP_ID));
+  } else {
+    ({ error } = await sb.from('empresas').insert(payload));
+  }
+
+  btn.disabled = false; btn.textContent = EDIT_EMP_ID ? 'Salvar alterações' : 'Salvar empresa';
+
+  if (error) { toast(error.message, 'err'); return; }
+
+  toast(EDIT_EMP_ID ? 'Empresa atualizada!' : 'Empresa cadastrada!', 'ok');
+  closeEmpModal();
+  await renderAdminEmp();
+}
+
+// ============================================================
+// EXCLUSÃO FÍSICA DE EMPRESA
+// ============================================================
+async function deleteEmpFisico(id, nome) {
+  const { count } = await sb.from('entregas')
+    .select('id', { count: 'exact', head: true })
+    .eq('empresa_id', id);
+  if (count > 0) {
+    toast(`Não é possível excluir: a empresa possui ${count} registro(s) histórico(s). Use "Inativar" para encerrá-la.`, 'err');
+    return;
+  }
+  if (!confirm(`Excluir definitivamente "${nome}"?\n\nUse esta opção apenas para corrigir cadastros incorretos sem histórico.\n\nEssa ação não pode ser desfeita.`)) return;
+  await sb.from('empresa_competencia').delete().eq('empresa_id', id);
+  const { error } = await sb.from('empresas').delete().eq('id', id);
+  if (error) { toast('Erro ao excluir: ' + error.message, 'err'); return; }
+  toast('Empresa excluída definitivamente.', 'ok');
+  await renderAdminEmp();
+}
+
+// ============================================================
+// IMPORTAÇÃO EM LOTE
+// ============================================================
+async function renderAdminImport() {
+  const el = eid('v-admin');
+  show('v-admin'); hide('v-analista'); hide('v-gestor');
+
+  el.innerHTML = `
+    <div class="acard" style="max-width:100%">
+      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+        <button class="btn ${IMPORT_MODE==='empresas'?'btn-primary':'btn-secondary'}" onclick="setImportMode('empresas')">Empresas</button>
+        <button class="btn ${IMPORT_MODE==='funcionarios'?'btn-primary':'btn-secondary'}" onclick="setImportMode('funcionarios')">Funcionários por Competência</button>
+        <button class="btn ${IMPORT_MODE==='responsaveis'?'btn-primary':'btn-secondary'}" onclick="setImportMode('responsaveis')">Responsáveis por Competência</button>
+      </div>
+      <div id="import-body"></div>
+    </div>`;
+
+  if (IMPORT_MODE === 'funcionarios')  renderImportFunc();
+  else if (IMPORT_MODE === 'responsaveis') renderImportResp();
+  else                                 renderImportEmpresas();
+}
+
+function setImportMode(mode) {
+  IMPORT_MODE = mode;
+  renderAdminImport();
+}
+
+function renderImportEmpresas() {
+  eid('import-body').innerHTML = `
+    <h3>Importação em lote de empresas</h3>
+    <p>Faça upload de um arquivo Excel (.xlsx) com o layout abaixo. Linhas com erro são ignoradas — o restante é importado normalmente.</p>
+
+    <div style="background:#f0fafa;border:1.5px solid var(--teal-bg);border-radius:var(--radius);padding:14px 16px;margin-bottom:20px;font-size:12px;line-height:1.8">
+      <strong style="display:block;margin-bottom:4px">Colunas esperadas (linha 1 = cabeçalho, dados a partir da linha 2):</strong>
+      <span style="color:var(--teal);font-weight:600">A</span> Código &nbsp;·&nbsp;
+      <span style="color:var(--teal);font-weight:600">B</span> Razão Social &nbsp;·&nbsp;
+      <span style="color:var(--teal);font-weight:600">C</span> Tipo (Matriz / Filial / Domestica) &nbsp;·&nbsp;
+      <span style="color:var(--teal);font-weight:600">D</span> Status (Com Movimento/Sem Movimento) &nbsp;·&nbsp;
+      <span style="color:var(--teal);font-weight:600">E</span> Analista (nome) &nbsp;·&nbsp;
+      <span style="color:var(--teal);font-weight:600">F</span> Funcionários &nbsp;·&nbsp;
+      <span style="color:var(--teal);font-weight:600">G</span> Data de Início (DD/MM/AAAA) &nbsp;·&nbsp;
+      <span style="color:var(--teal);font-weight:600">H</span> Tem Adiantamento (S/N)
+    </div>
+
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-secondary" onclick="downloadImportTemplate()">⬇ Baixar modelo Excel</button>
+      <label class="btn btn-primary" style="cursor:pointer;margin:0">
+        📂 Selecionar arquivo .xlsx
+        <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none" onchange="parseImportFile(this)"/>
+      </label>
+      <span id="import-filename" style="font-size:12px;color:var(--gray-400)"></span>
+    </div>
+
+    <div id="import-preview"></div>`;
+}
+
+function renderImportFunc() {
+  eid('import-body').innerHTML = `
+    <h3>Importação de funcionários por competência</h3>
+    <p>Atualize a quantidade de funcionários por mês. Cada linha grava o histórico da competência informada — competências anteriores nunca são sobrescritas.</p>
+
+    <div style="background:#f0fafa;border:1.5px solid var(--teal-bg);border-radius:var(--radius);padding:14px 16px;margin-bottom:20px;font-size:12px;line-height:1.8">
+      <strong style="display:block;margin-bottom:4px">Colunas esperadas (linha 1 = cabeçalho, dados a partir da linha 2):</strong>
+      <span style="color:var(--teal);font-weight:600">A</span> Código da Empresa &nbsp;·&nbsp;
+      <span style="color:var(--teal);font-weight:600">B</span> Competência (MM/AAAA) &nbsp;·&nbsp;
+      <span style="color:var(--teal);font-weight:600">C</span> Quantidade de Funcionários
+      <div style="margin-top:8px;color:var(--gray-500)">
+        A competência informada precisa estar cadastrada no sistema. A empresa é localizada pelo código.
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-secondary" onclick="downloadFuncTemplate()">⬇ Baixar modelo Excel</button>
+      <label class="btn btn-primary" style="cursor:pointer;margin:0">
+        📂 Selecionar arquivo .xlsx
+        <input type="file" id="import-func-file" accept=".xlsx,.xls" style="display:none" onchange="parseFuncImportFile(this)"/>
+      </label>
+      <span id="import-func-filename" style="font-size:12px;color:var(--gray-400)"></span>
+    </div>
+
+    <div id="import-func-preview"></div>`;
+}
+
+function downloadFuncTemplate() {
+  if (typeof XLSX === 'undefined') { toast('Biblioteca Excel não carregada. Recarregue a página.', 'err'); return; }
+  const now = new Date();
+  const compEx = `${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Código Empresa','Competência','Quantidade Funcionários'],
+    [80, compEx, 78],
+    [80, compEx, 82],
+    [201, compEx, 15],
+  ]);
+  ws['!cols'] = [{wch:16},{wch:14},{wch:24}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Funcionarios');
+  XLSX.writeFile(wb, `${APP_SLUG}_modelo_funcionarios.xlsx`);
+  toast('Modelo baixado!', 'ok');
+}
+
+async function parseFuncImportFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  eid('import-func-filename').textContent = file.name;
+  eid('import-func-preview').innerHTML = '<div class="loading"><div class="spinner"></div>Lendo arquivo…</div>';
+
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    try {
+      const wb   = XLSX.read(ev.target.result, { type: 'binary' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      const dataRows = rows.slice(1).filter(r => String(r[0]||'').trim() || String(r[1]||'').trim());
+      if (!dataRows.length) { toast('Nenhuma linha de dados encontrada.', 'err'); return; }
+      await validateAndPreviewFunc(dataRows);
+    } catch (err) {
+      eid('import-func-preview').innerHTML = `<div class="empty"><h3>Erro ao ler arquivo</h3><p>${err.message}</p></div>`;
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+async function validateAndPreviewFunc(rows) {
+  // Carrega empresas (código → id) e competências (mes/ano → id)
+  const { data: emps } = await sb.from('empresas').select('id, codigo, razao_social');
+  const empByCod = {};
+  (emps || []).forEach(e => { empByCod[String(e.codigo)] = e; });
+
+  const { data: comps } = await sb.from('competencias').select('id, mes, ano');
+  const compByKey = {};
+  (comps || []).forEach(c => { compByKey[`${c.mes}/${c.ano}`] = c; });
+
+  const results = rows.map((row, i) => {
+    const errors = [];
+    const codRaw  = String(row[0] || '').trim();
+    const compRaw = String(row[1] || '').trim();
+    const qtdRaw  = row[2];
+
+    const emp = empByCod[codRaw] || empByCod[String(parseInt(codRaw))];
+    if (!codRaw) errors.push('Código ausente');
+    else if (!emp) errors.push(`Empresa código ${codRaw} não encontrada`);
+
+    // Competência aceita MM/AAAA, M/AAAA, MM-AAAA
+    let compObj = null, compLabel = compRaw;
+    const m = compRaw.match(/^(\d{1,2})[\/\-](\d{4})$/);
+    if (m) {
+      const mes = parseInt(m[1]), ano = parseInt(m[2]);
+      compObj = compByKey[`${mes}/${ano}`];
+      compLabel = `${String(mes).padStart(2,'0')}/${ano}`;
+      if (!compObj) errors.push(`Competência ${compLabel} não cadastrada`);
+    } else {
+      errors.push('Competência inválida (use MM/AAAA)');
+    }
+
+    const qtd = parseInt(qtdRaw);
+    if (isNaN(qtd) || qtd < 0) errors.push('Quantidade inválida');
+
+    return {
+      linha: i + 2, codRaw, empId: emp?.id || null,
+      empNome: emp?.razao_social || null,
+      compId: compObj?.id || null, compLabel, qtd: isNaN(qtd) ? null : qtd,
+      errors, valid: errors.length === 0
+    };
+  });
+
+  const valid   = results.filter(r => r.valid);
+  const invalid = results.filter(r => !r.valid);
+
+  const summaryHtml = `
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="kcard" style="min-width:130px"><div class="kl">Total lido</div><div class="kn">${results.length}</div></div>
+      <div class="kcard" style="min-width:130px;background:var(--green-bg)"><div class="kl">Prontas</div><div class="kn" style="color:var(--green)">${valid.length}</div></div>
+      ${invalid.length ? `<div class="kcard kal" style="min-width:130px"><div class="kl">Com erro</div><div class="kn" style="color:var(--red)">${invalid.length}</div></div>` : ''}
+    </div>`;
+
+  const tableRows = results.map(r => {
+    const bg = r.valid ? '' : 'background:#fff5f5';
+    const errsHtml = r.errors.length ? `<div style="color:var(--red);font-size:10px;margin-top:2px">${r.errors.join(' · ')}</div>` : '';
+    return `<tr style="${bg}">
+      <td style="padding:5px 8px;font-size:11px;color:var(--gray-400)">${r.linha}</td>
+      <td style="padding:5px 8px;font-size:11px">${r.codRaw || '?'}${errsHtml}</td>
+      <td style="padding:5px 8px;font-size:11px;max-width:200px">${escHtml(r.empNome || '—')}</td>
+      <td style="padding:5px 8px;font-size:11px">${r.compLabel || '—'}</td>
+      <td style="padding:5px 8px;font-size:11px;text-align:center">${r.qtd !== null ? r.qtd : '—'}</td>
+      <td style="padding:5px 8px;font-size:11px;text-align:center">${r.valid
+        ? '<span style="color:var(--green);font-size:14px">✓</span>'
+        : '<span style="color:var(--red);font-size:14px">✗</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  const importBtn = valid.length > 0
+    ? `<button class="btn btn-primary" id="btn-func-exec" onclick="executeFuncImport()" style="margin-top:16px">
+         ⬆ Atualizar ${valid.length} registro${valid.length !== 1 ? 's' : ''}
+       </button>`
+    : `<p style="color:var(--red);margin-top:16px;font-size:13px">Nenhuma linha válida. Corrija o arquivo e tente novamente.</p>`;
+
+  eid('import-func-preview').innerHTML = summaryHtml + `
+    <div class="tbl-wrap" style="max-height:420px">
+      <table style="width:100%">
+        <thead><tr>
+          ${['Linha','Cód.','Empresa','Competência','Func.','✓'].map(h =>
+            `<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;background:#f6f8fa;color:#6b7280">${h}</th>`
+          ).join('')}
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+    ${importBtn}
+    <div id="import-func-result"></div>`;
+
+  window._funcRows = valid;
+}
+
+async function executeFuncImport() {
+  const rows = window._funcRows;
+  if (!rows?.length) { toast('Nenhuma linha válida.', 'err'); return; }
+
+  const btn = eid('btn-func-exec');
+  if (btn) { btn.disabled = true; btn.textContent = `Atualizando 0/${rows.length}…`; }
+
+  let success = 0, errors = 0;
+  const errorMsgs = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (btn) btn.textContent = `Atualizando ${i + 1}/${rows.length}…`;
+
+    // Upsert por (empresa_id, competencia_id) — atualiza apenas funcionarios,
+    // preservando tem_movimento/tem_adiantamento já gravados na competência.
+    const { error } = await sb.from('empresa_competencia')
+      .upsert(
+        { empresa_id: r.empId, competencia_id: r.compId, funcionarios: r.qtd },
+        { onConflict: 'empresa_id,competencia_id' }
+      );
+
+    if (error) { errors++; errorMsgs.push(`Linha ${r.linha} (cód ${r.codRaw}): ${error.message}`); }
+    else       { success++; }
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Importação concluída'; }
+
+  toast(`Funcionários: ${success} atualizado${success!==1?'s':''}${errors ? `, ${errors} erro${errors!==1?'s':''}` : ''}.`, errors === 0 ? 'ok' : 'inf');
+
+  let html = `<div style="margin-top:16px;padding:14px;background:var(--green-bg);border-radius:var(--radius);font-size:13px;color:var(--green)">
+    ✓ ${success} registro${success!==1?'s':''} de funcionários atualizado${success!==1?'s':''}.
+  </div>`;
+  if (errorMsgs.length) {
+    html += `<div style="margin-top:8px;padding:14px;background:var(--red-bg);border-radius:var(--radius);font-size:12px;color:var(--red)">
+      <strong>Erros durante a importação:</strong><br>${errorMsgs.map(m => `• ${m}`).join('<br>')}
+    </div>`;
+  }
+  const resultEl = eid('import-func-result');
+  if (resultEl) resultEl.innerHTML = html;
+  window._funcRows = null;
+}
+
+// ============================================================
+// IMPORTAÇÃO DE RESPONSÁVEIS POR COMPETÊNCIA (item 2)
+// ============================================================
+function renderImportResp() {
+  eid('import-body').innerHTML = `
+    <h3>Importação de responsáveis por competência</h3>
+    <p>Redistribua carteiras por competência. Cada linha grava o analista responsável por aquela empresa naquele mês — sem alterar outras competências nem o histórico existente.</p>
+
+    <div style="background:#f0fafa;border:1.5px solid var(--teal-bg);border-radius:var(--radius);padding:14px 16px;margin-bottom:20px;font-size:12px;line-height:1.8">
+      <strong style="display:block;margin-bottom:4px">Colunas esperadas (linha 1 = cabeçalho, dados a partir da linha 2):</strong>
+      <span style="color:var(--teal);font-weight:600">A</span> Código da Empresa &nbsp;·&nbsp;
+      <span style="color:var(--teal);font-weight:600">B</span> Competência (MM/AAAA) &nbsp;·&nbsp;
+      <span style="color:var(--teal);font-weight:600">C</span> Nome do Analista (exatamente como cadastrado)
+      <div style="margin-top:8px;color:var(--gray-500)">
+        A empresa é localizada pelo código. O analista é localizado pelo nome. A competência precisa estar aberta ou concluída no sistema.
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-secondary" onclick="downloadRespTemplate()">⬇ Baixar modelo Excel</button>
+      <label class="btn btn-primary" style="cursor:pointer;margin:0">
+        📂 Selecionar arquivo .xlsx
+        <input type="file" id="import-resp-file" accept=".xlsx,.xls" style="display:none" onchange="parseRespImportFile(this)"/>
+      </label>
+      <span id="import-resp-filename" style="font-size:12px;color:var(--gray-400)"></span>
+    </div>
+
+    <div id="import-resp-preview"></div>`;
+}
+
+function downloadRespTemplate() {
+  if (typeof XLSX === 'undefined') { toast('Biblioteca Excel não carregada. Recarregue a página.', 'err'); return; }
+  const now = new Date();
+  const compEx  = `${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
+  const compEx2 = `${String(now.getMonth()+2 > 12 ? 1 : now.getMonth()+2).padStart(2,'0')}/${now.getMonth()+2 > 12 ? now.getFullYear()+1 : now.getFullYear()}`;
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Código Empresa','Competência','Analista Responsável'],
+    [80, compEx,  'João Silva'],
+    [80, compEx2, 'Maria Santos'],
+    [120, compEx2, 'Carlos Oliveira'],
+  ]);
+  ws['!cols'] = [{wch:16},{wch:14},{wch:30}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Responsaveis');
+  XLSX.writeFile(wb, `${APP_SLUG}_modelo_responsaveis.xlsx`);
+  toast('Modelo baixado!', 'ok');
+}
+
+async function parseRespImportFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  eid('import-resp-filename').textContent = file.name;
+  eid('import-resp-preview').innerHTML = '<div class="loading"><div class="spinner"></div>Lendo arquivo…</div>';
+
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    try {
+      const wb   = XLSX.read(ev.target.result, { type: 'binary' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      const dataRows = rows.slice(1).filter(r => String(r[0]||'').trim() || String(r[1]||'').trim());
+      if (!dataRows.length) { toast('Nenhuma linha de dados encontrada.', 'err'); return; }
+      await validateAndPreviewResp(dataRows);
+    } catch (err) {
+      eid('import-resp-preview').innerHTML = `<div class="empty"><h3>Erro ao ler arquivo</h3><p>${err.message}</p></div>`;
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+async function validateAndPreviewResp(rows) {
+  // Carrega empresas (código → id), competências (mes/ano → id), analistas (nome → id)
+  const { data: emps } = await sb.from('empresas').select('id, codigo, razao_social');
+  const empByCod = {};
+  (emps || []).forEach(e => { empByCod[String(e.codigo)] = e; });
+
+  const { data: comps } = await sb.from('competencias').select('id, mes, ano');
+  const compByKey = {};
+  (comps || []).forEach(c => { compByKey[`${c.mes}/${c.ano}`] = c; });
+
+  // Analistas por nome — busca inexata (case-insensitive, trim)
+  const analByNome = {};
+  (ANALISTAS || []).forEach(a => { analByNome[a.nome.trim().toLowerCase()] = a; });
+
+  const results = rows.map((row, i) => {
+    const errors = [];
+    const codRaw    = String(row[0] || '').trim();
+    const compRaw   = String(row[1] || '').trim();
+    const analRaw   = String(row[2] || '').trim();
+
+    // Empresa
+    const emp = empByCod[codRaw] || empByCod[String(parseInt(codRaw))];
+    if (!codRaw) errors.push('Código ausente');
+    else if (!emp) errors.push(`Empresa ${codRaw} não encontrada`);
+
+    // Competência
+    let compObj = null, compLabel = compRaw;
+    const m = compRaw.match(/^(\d{1,2})[\/\-](\d{4})$/);
+    if (m) {
+      const mes = parseInt(m[1]), ano = parseInt(m[2]);
+      compObj = compByKey[`${mes}/${ano}`];
+      compLabel = `${String(mes).padStart(2,'0')}/${ano}`;
+      if (!compObj) errors.push(`Competência ${compLabel} não cadastrada`);
+    } else {
+      errors.push('Competência inválida (use MM/AAAA)');
+    }
+
+    // Analista
+    const anal = analByNome[analRaw.toLowerCase()];
+    if (!analRaw) errors.push('Analista ausente');
+    else if (!anal) errors.push(`Analista "${analRaw}" não encontrado`);
+
+    return {
+      linha: i + 2, codRaw,
+      empId: emp?.id || null, empNome: emp?.razao_social || null,
+      compId: compObj?.id || null, compLabel,
+      analId: anal?.id || null, analNome: anal?.nome || null,
+      analRaw, errors, valid: errors.length === 0
+    };
+  });
+
+  const valid   = results.filter(r => r.valid);
+  const invalid = results.filter(r => !r.valid);
+
+  const summaryHtml = `
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="kcard" style="min-width:130px"><div class="kl">Total lido</div><div class="kn">${results.length}</div></div>
+      <div class="kcard" style="min-width:130px;background:var(--green-bg)"><div class="kl">Prontas</div><div class="kn" style="color:var(--green)">${valid.length}</div></div>
+      ${invalid.length ? `<div class="kcard kal" style="min-width:130px"><div class="kl">Com erro</div><div class="kn" style="color:var(--red)">${invalid.length}</div></div>` : ''}
+    </div>`;
+
+  const tableRows = results.map(r => {
+    const bg = r.valid ? '' : 'background:#fff5f5';
+    const errsHtml = r.errors.length ? `<div style="color:var(--red);font-size:10px;margin-top:2px">${r.errors.join(' · ')}</div>` : '';
+    return `<tr style="${bg}">
+      <td style="padding:5px 8px;font-size:11px;color:var(--gray-400)">${r.linha}</td>
+      <td style="padding:5px 8px;font-size:11px">${r.codRaw || '?'}${errsHtml}</td>
+      <td style="padding:5px 8px;font-size:11px;max-width:160px">${escHtml(r.empNome || '—')}</td>
+      <td style="padding:5px 8px;font-size:11px">${r.compLabel || '—'}</td>
+      <td style="padding:5px 8px;font-size:11px">${escHtml(r.analNome || r.analRaw || '—')}</td>
+      <td style="padding:5px 8px;font-size:11px;text-align:center">${r.valid
+        ? '<span style="color:var(--green);font-size:14px">✓</span>'
+        : '<span style="color:var(--red);font-size:14px">✗</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  const importBtn = valid.length > 0
+    ? `<button class="btn btn-primary" id="btn-resp-exec" onclick="executeRespImport()" style="margin-top:16px">
+         ⬆ Atribuir ${valid.length} responsável${valid.length !== 1 ? 'is' : ''}
+       </button>`
+    : `<p style="color:var(--red);margin-top:16px;font-size:13px">Nenhuma linha válida. Corrija o arquivo e tente novamente.</p>`;
+
+  eid('import-resp-preview').innerHTML = summaryHtml + `
+    <div class="tbl-wrap" style="max-height:420px">
+      <table style="width:100%">
+        <thead><tr>
+          ${['Linha','Cód.','Empresa','Competência','Analista','✓'].map(h =>
+            `<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;background:#f6f8fa;color:#6b7280">${h}</th>`
+          ).join('')}
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+    ${importBtn}
+    <div id="import-resp-result"></div>`;
+
+  window._respRows = valid;
+}
+
+async function executeRespImport() {
+  const rows = window._respRows;
+  if (!rows?.length) { toast('Nenhuma linha válida.', 'err'); return; }
+
+  const btn = eid('btn-resp-exec');
+  if (btn) { btn.disabled = true; btn.textContent = `Atribuindo 0/${rows.length}…`; }
+
+  let success = 0, errors = 0;
+  const errorMsgs = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (btn) btn.textContent = `Atribuindo ${i + 1}/${rows.length}…`;
+
+    // Atualiza empresa_competencia.analista_id sem sobrescrever outros atributos mensais
+    const { error } = await sb.from('empresa_competencia')
+      .upsert(
+        { empresa_id: r.empId, competencia_id: r.compId, analista_id: r.analId },
+        { onConflict: 'empresa_id,competencia_id' }
+      );
+
+    if (error) { errors++; errorMsgs.push(`Linha ${r.linha} (cód ${r.codRaw}): ${error.message}`); }
+    else       { success++; }
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Importação concluída'; }
+
+  toast(`Responsáveis: ${success} atualizado${success!==1?'s':''}${errors ? `, ${errors} erro${errors!==1?'s':''}` : ''}.`, errors === 0 ? 'ok' : 'inf');
+
+  let html = `<div style="margin-top:16px;padding:14px;background:var(--green-bg);border-radius:var(--radius);font-size:13px;color:var(--green)">
+    ✓ ${success} responsável${success!==1?'is':''} atualizado${success!==1?'s':''} com sucesso.
+  </div>`;
+  if (errorMsgs.length) {
+    html += `<div style="margin-top:8px;padding:14px;background:var(--red-bg);border-radius:var(--radius);font-size:12px;color:var(--red)">
+      <strong>Erros:</strong><br>${errorMsgs.map(m => `• ${m}`).join('<br>')}
+    </div>`;
+  }
+  const resultEl = eid('import-resp-result');
+  if (resultEl) resultEl.innerHTML = html;
+  window._respRows = null;
+}
+
+function downloadImportTemplate() {
+  if (typeof XLSX === 'undefined') { toast('Biblioteca Excel não carregada. Recarregue a página.', 'err'); return; }
+  const analNomes = ANALISTAS.map(a => a.nome).slice(0, 3).join(' / ') || 'Nome do Analista';
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Código','Razão Social','Tipo','Status','Analista','Funcionários','Data de Início','Tem Adiantamento'],
+    [1001,'Empresa Exemplo LTDA','Matriz','Com Movimento', analNomes.split('/')[0].trim(), 10,'01/01/2026','S'],
+    [1002,'Filial Exemplo LTDA','Filial','Com Movimento',  analNomes.split('/')[0].trim(),  5,'01/01/2026','N'],
+    [1003,'Empresa Sem Mov LTDA','Matriz','Sem Movimento', analNomes.split('/')[0].trim(),  0,'01/06/2026','N'],
+    [1004,'Domestica Exemplo','Domestica','Com Movimento', analNomes.split('/')[0].trim(),  1,'01/01/2026','N'],
+  ]);
+  ws['!cols'] = [{wch:8},{wch:35},{wch:10},{wch:16},{wch:25},{wch:12},{wch:16},{wch:18}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Empresas');
+  XLSX.writeFile(wb, 'modelo_importacao_empresas.xlsx');
+  toast('Modelo baixado!', 'ok');
+}
+
+async function parseImportFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  eid('import-filename').textContent = file.name;
+  eid('import-preview').innerHTML = '<div class="loading"><div class="spinner"></div>Lendo arquivo…</div>';
+
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    try {
+      const wb   = XLSX.read(ev.target.result, { type: 'binary', cellDates: true });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      const dataRows = rows.slice(1).filter(r => String(r[0]||'').trim() || String(r[1]||'').trim());
+      if (!dataRows.length) { toast('Nenhuma linha de dados encontrada.', 'err'); return; }
+      await validateAndPreviewImport(dataRows);
+    } catch (err) {
+      eid('import-preview').innerHTML = `<div class="empty"><h3>Erro ao ler arquivo</h3><p>${err.message}</p></div>`;
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+async function validateAndPreviewImport(rows) {
+  const results = rows.map((row, i) => {
+    const errors = [];
+    const codRaw  = String(row[0] || '').trim();
+    const nm      = String(row[1] || '').trim();
+    const tipoRaw = String(row[2] || '').trim();
+    const statRaw = String(row[3] || '').trim().toLowerCase();
+    const analNm  = String(row[4] || '').trim();
+    const func    = parseInt(row[5]) || 0;
+    const dtRaw   = row[6];
+    const adiRaw  = String(row[7] || '').trim().toLowerCase();
+
+    const cod = parseInt(codRaw);
+    if (!cod) errors.push('Código inválido');
+    if (!nm)  errors.push('Razão Social obrigatória');
+
+    const tipoNorm = tipoRaw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const tipo = tipoNorm === 'filial'    ? 'Filial'
+               : tipoNorm === 'domestica' ? 'Domestica'
+               : 'Matriz';
+
+    const statNorm = ['sem movimento','sem_movimento','sem mov','sem mov.','s/mov'].includes(statRaw)
+      ? 'sem_movimento' : 'ativo';
+
+    // Analista: busca por nome parcial (case-insensitive)
+    const analNmL = analNm.toLowerCase();
+    const anal = ANALISTAS.find(a =>
+      a.nome.toLowerCase().includes(analNmL) || analNmL.includes(a.nome.toLowerCase().split(' ')[0])
+    );
+    if (analNm && !anal) errors.push(`Analista "${analNm}" não encontrado`);
+
+    // Data de início — aceita Date (do SheetJS), string DD/MM/AAAA, ou serial Excel
+    let dtStr = null;
+    if (dtRaw instanceof Date && !isNaN(dtRaw)) {
+      dtStr = dtRaw.toISOString().split('T')[0];
+    } else if (typeof dtRaw === 'string') {
+      const m = dtRaw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (m) dtStr = `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    } else if (typeof dtRaw === 'number' && XLSX.SSF) {
+      try {
+        const d = XLSX.SSF.parse_date_code(dtRaw);
+        if (d) dtStr = `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+      } catch(e) {}
+    }
+    if (!dtStr) errors.push('Data de Início inválida ou ausente');
+
+    const adi = ['s','sim','yes','y','true','1','x'].includes(adiRaw);
+
+    return {
+      linha: i + 2, cod, nm, tipo, stat: statNorm,
+      analId: anal?.id || null, analNm, func, dtStr, adi,
+      errors, valid: errors.length === 0
+    };
+  });
+
+  const valid   = results.filter(r => r.valid);
+  const invalid = results.filter(r => !r.valid);
+
+  const summaryHtml = `
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="kcard" style="min-width:130px">
+        <div class="kl">Total lido</div>
+        <div class="kn">${results.length}</div>
+      </div>
+      <div class="kcard" style="min-width:130px;background:var(--green-bg)">
+        <div class="kl">Prontas</div>
+        <div class="kn" style="color:var(--green)">${valid.length}</div>
+      </div>
+      ${invalid.length ? `<div class="kcard kal" style="min-width:130px">
+        <div class="kl">Com erro</div>
+        <div class="kn" style="color:var(--red)">${invalid.length}</div>
+      </div>` : ''}
+    </div>`;
+
+  const tableRows = results.map(r => {
+    const ok  = r.valid;
+    const bg  = ok ? '' : 'background:#fff5f5';
+    const dtFmt = r.dtStr ? r.dtStr.split('-').reverse().join('/') : '—';
+    const errsHtml = r.errors.length
+      ? `<div style="color:var(--red);font-size:10px;margin-top:2px">${r.errors.join(' · ')}</div>` : '';
+    return `<tr style="${bg}">
+      <td style="padding:5px 8px;font-size:11px;color:var(--gray-400)">${r.linha}</td>
+      <td style="padding:5px 8px;font-size:11px">${r.cod || '?'}</td>
+      <td style="padding:5px 8px;font-size:11px;max-width:200px">${escHtml(r.nm || '—')}${errsHtml}</td>
+      <td style="padding:5px 8px;font-size:11px">${r.tipo}</td>
+      <td style="padding:5px 8px;font-size:11px">${r.stat === 'ativo' ? 'Com mov.' : 'Sem mov.'}</td>
+      <td style="padding:5px 8px;font-size:11px">${escHtml(r.analNm || '—')}</td>
+      <td style="padding:5px 8px;font-size:11px">${dtFmt}</td>
+      <td style="padding:5px 8px;font-size:11px;text-align:center">${ok
+        ? '<span style="color:var(--green);font-size:14px">✓</span>'
+        : '<span style="color:var(--red);font-size:14px">✗</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  const importBtn = valid.length > 0
+    ? `<button class="btn btn-primary" id="btn-import-exec" onclick="executeImport()" style="margin-top:16px">
+         ⬆ Importar ${valid.length} empresa${valid.length !== 1 ? 's' : ''} válida${valid.length !== 1 ? 's' : ''}
+       </button>`
+    : `<p style="color:var(--red);margin-top:16px;font-size:13px">Nenhuma linha válida para importar. Corrija o arquivo e tente novamente.</p>`;
+
+  eid('import-preview').innerHTML = summaryHtml + `
+    <div class="tbl-wrap" style="max-height:420px">
+      <table style="width:100%">
+        <thead><tr>
+          ${['Linha','Cód.','Razão Social / Erros','Tipo','Status','Analista','Data Início','✓'].map(h =>
+            `<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:10px;text-transform:uppercase;background:#f6f8fa;color:#6b7280">${h}</th>`
+          ).join('')}
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+    ${importBtn}
+    <div id="import-result"></div>`;
+
+  window._importRows = valid;
+}
+
+async function executeImport() {
+  const rows = window._importRows;
+  if (!rows?.length) { toast('Nenhuma linha válida.', 'err'); return; }
+
+  const btn = eid('btn-import-exec');
+  if (btn) { btn.disabled = true; btn.textContent = `Importando 0/${rows.length}…`; }
+
+  let success = 0, errors = 0;
+  const errorMsgs = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (btn) btn.textContent = `Importando ${i + 1}/${rows.length}…`;
+
+    const payload = {
+      codigo: r.cod, razao_social: r.nm,
+      tipo_empresa: r.tipo, status: r.stat,
+      analista_id: r.analId || null,
+      funcionarios: r.func, tem_adiantamento: r.adi,
+      data_inicio: r.dtStr
+    };
+
+    const { error } = await sb.from('empresas')
+      .upsert(payload, { onConflict: 'codigo' });
+
+    if (error) {
+      errors++;
+      errorMsgs.push(`Linha ${r.linha} (${r.nm}): ${error.message}`);
+    } else {
+      success++;
+    }
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Importação concluída'; }
+
+  const resultEl = eid('import-result');
+  const tipo = errors === 0 ? 'ok' : 'inf';
+  toast(`Importação: ${success} sucesso${success !== 1 ? 's' : ''}${errors ? `, ${errors} erro${errors !== 1 ? 's' : ''}` : ''}.`, tipo);
+
+  let html = `<div style="margin-top:16px;padding:14px;background:var(--green-bg);border-radius:var(--radius);font-size:13px;color:var(--green)">
+    ✓ ${success} empresa${success !== 1 ? 's' : ''} importada${success !== 1 ? 's' : ''} com sucesso.
+  </div>`;
+
+  if (errorMsgs.length) {
+    html += `<div style="margin-top:8px;padding:14px;background:var(--red-bg);border-radius:var(--radius);font-size:12px;color:var(--red)">
+      <strong>Erros durante a importação:</strong><br>
+      ${errorMsgs.map(m => `• ${m}`).join('<br>')}
+    </div>`;
+  }
+
+  if (resultEl) resultEl.innerHTML = html;
+  window._importRows = null;
+}
+
+// ============================================================
+// RE-RENDER CONTEXT (redireciona após salvar no modal de data)
+// ============================================================
+async function _reRender() {
+  if      (MODAL_ORIGIN === 'admin-cart')   await renderAdminCart();
+  else if (MODAL_ORIGIN === 'gestor-cart')  await renderGestorCart();
+  else                                      await renderAnalista();
+}
+
+// ============================================================
+// CARTEIRAS — função compartilhada Admin/Gestor
+// ============================================================
+async function renderCarteiras(el, isAdmin) {
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Carregando carteiras…</div>';
+
+  if (!COMP) {
+    el.innerHTML = `<div class="empty">
+      <h3>Nenhuma competência aberta</h3>
+      <p>Vá em Competências para abrir o mês atual.</p>
+    </div>`;
+    return;
+  }
+
+  // Busca todas as empresas (filtro de analista é feito client-side após resolver histórico)
+  const { data: rawEmps } = await sb.from('empresas')
+    .select('id, codigo, razao_social, tipo_empresa, status, funcionarios, tem_adiantamento, data_inicio, data_fim, analista_id')
+    .order('codigo');
+
+  // Filtro de vigência para a competência ativa
+  const compFirstDay = `${COMP.ano}-${String(COMP.mes).padStart(2,'0')}-01`;
+  const compLastDay  = new Date(COMP.ano, COMP.mes, 0).toISOString().split('T')[0];
+  const empsAll = (rawEmps || []).filter(e => {
+    const inicioOk = !e.data_inicio || e.data_inicio <= compLastDay;
+    const fimOk    = !e.data_fim    || e.data_fim    >= compFirstDay;
+    return inicioOk && fimOk;
+  });
+
+  if (!empsAll.length) {
+    el.innerHTML = `<div class="empty">
+      <h3>Nenhuma empresa</h3>
+      <p>Nenhuma empresa ativa nesta competência. Ajuste os filtros ou verifique as vigências.</p>
+    </div>`;
+    return;
+  }
+
+  const ids = empsAll.map(e => e.id);
+
+  // Dados mensais da competência (inclui analista_id histórico)
+  const { data: ecList } = await sb
+    .from('empresa_competencia')
+    .select('empresa_id, tem_movimento, tem_adiantamento, funcionarios, analista_id')
+    .eq('competencia_id', COMP.id)
+    .in('empresa_id', ids);
+
+  const ecIdx = {};
+  (ecList || []).forEach(ec => { ecIdx[ec.empresa_id] = ec; });
+
+  // Aplica atributos mensais com fallback para dados estáticos
+  const empsComAtributos = empsAll.map(e => {
+    const ec = ecIdx[e.id];
+    return {
+      ...e,
+      _movimento:    ec ? ec.tem_movimento    : e.status !== 'sem_movimento',
+      _adiantamento: ec ? ec.tem_adiantamento : e.tem_adiantamento,
+      _funcionarios: ec ? ec.funcionarios     : e.funcionarios,
+      _analista_id:  ec?.analista_id          ?? e.analista_id   // analista histórico da competência
+    };
+  });
+
+  // Aplica filtros de adiantamento, movimento e analista (usa analista histórico da competência)
+  let emps = empsComAtributos;
+  if (F_CART_ANAL  !== 'todos') emps = emps.filter(e => e._analista_id === F_CART_ANAL);
+  if (F_CART_ADIAN === 'sim') emps = emps.filter(e => e._adiantamento);
+  if (F_CART_ADIAN === 'nao') emps = emps.filter(e => !e._adiantamento);
+  if (F_CART_MOV   === 'sim') emps = emps.filter(e => e._movimento);
+  if (F_CART_MOV   === 'nao') emps = emps.filter(e => !e._movimento);
+
+  // Busca entregas para TODAS as empresas (antes do filtro visual) — necessário para o índice
+  const idsAll = empsComAtributos.map(e => e.id);
+  const { data: ents } = await sb
+    .from('entregas')
+    .select('id, empresa_id, atividade_id, data_conclusao, nt, nao_ocorreu')
+    .eq('competencia_id', COMP.id)
+    .in('empresa_id', idsAll);
+
+  const idx = {};
+  (ents || []).forEach(e => { idx[e.empresa_id + '|' + e.atividade_id] = e; });
+
+  // Stats sobre empresas filtradas
+  let tot = 0, done = 0;
+  emps.forEach(emp => {
+    (ents || []).filter(e => e.empresa_id === emp.id && !e.nt).forEach(e => {
+      tot++; if (e.data_conclusao || e.nao_ocorreu) done++;
+    });
+  });
+  const pct = tot > 0 ? Math.round(done / tot * 100) : 0;
+
+  // Vidas do conjunto exibido (após filtros)
+  const vidas = emps.reduce((s, e) => s + (e._funcionarios || 0), 0);
+
+  // Total de vidas do departamento na competência (independe do filtro de analista)
+  // Buscado separadamente apenas quando há filtro por analista, para comparação.
+  let deptVidas = null;
+  if (F_CART_ANAL !== 'todos') {
+    deptVidas = await getDeptVidas();
+  }
+
+  // Origem para redirecionar o modal de data
+  const origin = isAdmin ? 'admin-cart' : 'gestor-cart';
+
+  // Cabeçalho de atividades
+  const thAtvs = ATIVS.map(a => `<th title="${a.nome}">${a.label_curto}</th>`).join('');
+
+  // Linhas da tabela
+  const rows = emps.map(emp => {
+    const an   = ANALISTAS.find(a => a.id === emp._analista_id);
+    const smov = !emp._movimento;
+    const nm   = emp.razao_social.length > 22 ? emp.razao_social.slice(0,22) + '…' : emp.razao_social;
+    const anNm = an ? ' · ' + an.nome.split(' ')[0] : '';
+
+    const cells = ATIVS.map(atv => {
+      const ent = idx[emp.id + '|' + atv.id];
+      if (!ent || ent.nt) return `<td class="ac"><span class="chip c-nt">—</span></td>`;
+
+      if (ent.nao_ocorreu) {
+        return `<td class="ac"><span class="chip c-no"
+          data-id="${ent.id || ''}" data-dt="" data-no="true"
+          data-emp="${escAttr(emp.razao_social)}" data-atv="${escAttr(atv.nome)}"
+          onclick="MODAL_ORIGIN='${origin}';openDate(this)"
+          title="${atv.nome} · não ocorreu">N/O</span></td>`;
+      }
+      if (ent.data_conclusao) {
+        const [y,m,d] = ent.data_conclusao.split('-');
+        const fmt = `${d}/${m}`;
+        return `<td class="ac"><span class="chip c-ok"
+          data-id="${ent.id || ''}" data-dt="${ent.data_conclusao}" data-no="false"
+          data-emp="${escAttr(emp.razao_social)}" data-atv="${escAttr(atv.nome)}"
+          onclick="MODAL_ORIGIN='${origin}';openDate(this)"
+          title="${atv.nome} · ${fmt}">${fmt}</span></td>`;
+      }
+      return `<td class="ac"><span class="chip c-pend"
+        data-id="${ent.id || ''}" data-dt="" data-no="false"
+        data-emp="${escAttr(emp.razao_social)}" data-atv="${escAttr(atv.nome)}"
+        onclick="MODAL_ORIGIN='${origin}';openDate(this)"
+        title="${atv.nome} · pendente">+</span></td>`;
+    }).join('');
+
+    const cbCell = isAdmin
+      ? `<td class="td-cb"><input type="checkbox" class="emp-check" value="${emp.id}" onchange="toggleEmpSelect(this)"/></td>`
+      : '';
+
+    return `<tr class="${smov ? 'smov' : ''}" data-emp-id="${emp.id}">
+      ${cbCell}
+      <td class="co">
+        <div class="co-nm"><span class="co-code">${emp.codigo} · </span>${escHtml(nm)}</div>
+        <div class="co-meta">${emp._funcionarios} func · ${emp.tipo_empresa}${smov ? ' · sem mov.' : ''}${emp._adiantamento ? ' · adiant.' : ''}${anNm}</div>
+      </td>${cells}</tr>`;
+  }).join('');
+
+  // Filtros
+  const analOpts = `<option value="todos" ${F_CART_ANAL==='todos'?'selected':''}>Todos analistas</option>` +
+    ANALISTAS.map(a =>
+      `<option value="${a.id}" ${F_CART_ANAL===a.id?'selected':''}>${escHtml(a.nome)}</option>`
+    ).join('');
+
+  const reRenderFn = isAdmin ? 'renderAdminCart()' : 'renderGestorCart()';
+
+  const filterBar = `
+    <div class="filter-bar" style="flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center">
+      <select style="width:auto;padding:4px 10px;font-size:12px;height:30px;border-radius:20px"
+        onchange="F_CART_ANAL=this.value;${reRenderFn}">${analOpts}</select>
+      <span class="fl" style="margin-left:4px">Movimento:</span>
+      <button class="fbtn ${F_CART_MOV==='todos'?'on':''}" onclick="F_CART_MOV='todos';${reRenderFn}">Todos</button>
+      <button class="fbtn ${F_CART_MOV==='sim'?'on':''}"   onclick="F_CART_MOV='sim';${reRenderFn}">Com mov.</button>
+      <button class="fbtn ${F_CART_MOV==='nao'?'on':''}"   onclick="F_CART_MOV='nao';${reRenderFn}">Sem mov.</button>
+      <span class="fl" style="margin-left:4px">Adiant.:</span>
+      <button class="fbtn ${F_CART_ADIAN==='todos'?'on':''}" onclick="F_CART_ADIAN='todos';${reRenderFn}">Todos</button>
+      <button class="fbtn ${F_CART_ADIAN==='sim'?'on':''}"   onclick="F_CART_ADIAN='sim';${reRenderFn}">Com adiant.</button>
+      <button class="fbtn ${F_CART_ADIAN==='nao'?'on':''}"   onclick="F_CART_ADIAN='nao';${reRenderFn}">Sem adiant.</button>
+    </div>`;
+
+  // Barra de bulk (somente admin)
+  const bulkBar = isAdmin ? `
+    <div id="bulk-bar" class="bulk-bar">
+      <span id="bulk-count" class="bulk-count-lbl">0 selecionadas</span>
+      <button class="btn btn-primary" onclick="openBulkModal()" style="padding:5px 14px;font-size:12px">⇄ Atribuir analista</button>
+      <button class="btn btn-secondary" onclick="clearBulkSelection()" style="padding:5px 14px;font-size:12px">Limpar seleção</button>
+    </div>` : '';
+
+  // TH checkbox (somente admin)
+  const cbTh = isAdmin
+    ? `<th class="th-cb"><input type="checkbox" id="cb-all" onchange="toggleAllEmps(this)" style="width:auto;accent-color:var(--teal)"/></th>`
+    : '';
+
+  // Summary bar
+  const pCol = p => p < 40 ? 'var(--red)' : p < 70 ? 'var(--amber)' : 'var(--green)';
+  const vidasLabel = deptVidas !== null
+    ? `vidas · ${deptVidas} no dept.`
+    : 'vidas';
+  const sumbar = `
+    <div class="sumbar" style="margin-bottom:12px">
+      <div class="stat"><div class="n" style="color:var(--green)">${done}</div><div class="l">concluídas</div></div>
+      <div class="sdiv"></div>
+      <div class="stat"><div class="n" style="color:var(--red)">${tot - done}</div><div class="l">pendentes</div></div>
+      <div class="sdiv"></div>
+      <div class="stat"><div class="n">${emps.length}</div><div class="l">empresas</div></div>
+      <div class="sdiv"></div>
+      <div class="stat"><div class="n" style="color:var(--blue)">${vidas}</div><div class="l">${vidasLabel}</div></div>
+      <div class="sdiv"></div>
+      <div class="progw">
+        <div class="prog"><div class="progf" style="width:${pct}%;background:${pCol(pct)}"></div></div>
+        <span class="progt" style="color:${pCol(pct)}">${pct}%</span>
+      </div>
+    </div>`;
+
+  el.innerHTML = filterBar + bulkBar + sumbar + `
+    <div class="search-bar" style="margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <input type="text" placeholder="Buscar empresa…" oninput="filterCartRows(this.value)" style="max-width:280px"/>
+      <button class="btn btn-secondary" onclick="exportCarteiras()" style="padding:7px 14px;font-size:12px;white-space:nowrap">⬇ Exportar Excel</button>
+    </div>
+    <div class="tbl-wrap" style="max-height:calc(100vh - 215px)">
+      <table>
+        <thead><tr>${cbTh}<th class="co">Empresa</th>${thAtvs}</tr></thead>
+        <tbody id="tbody-cart">${rows || '<tr><td colspan="20" style="text-align:center;padding:20px;color:var(--gray-400)">Nenhuma empresa após filtros.</td></tr>'}</tbody>
+      </table>
+    </div>`;
+
+  // Guarda os dados exibidos para a exportação Excel (respeita competência e filtros atuais)
+  window._cartExport = { emps, idx, comp: COMP };
+
+  // Limpa seleção ao re-renderizar
+  SELECTED_EMPS.clear();
+}
+
+// ============================================================
+// EXPORTAÇÃO EXCEL DA ABA CARTEIRAS (item 4)
+// ============================================================
+function exportCarteiras() {
+  if (typeof XLSX === 'undefined') { toast('Biblioteca Excel não carregada. Recarregue a página.', 'err'); return; }
+  const ctx = window._cartExport;
+  if (!ctx || !ctx.emps?.length) { toast('Nada para exportar nesta competência.', 'inf'); return; }
+  const { emps, idx, comp } = ctx;
+  const compLabel = comp ? `${MES_NOMES[comp.mes-1]}/${comp.ano}` : '';
+
+  // Cabeçalho: dados fixos + 12 atividades
+  const header = ['Código','Razão Social','Analista','Funcionários','Movimento','Adiantamento'];
+  ATIVS.forEach(a => header.push(a.label_curto || a.nome));
+
+  const aoa = [header];
+
+  emps.forEach(emp => {
+    const an = ANALISTAS.find(a => a.id === emp._analista_id);
+    const row = [
+      emp.codigo,
+      emp.razao_social || '',
+      an ? an.nome : '',
+      emp._funcionarios || 0,
+      emp._movimento ? 'Com movimento' : 'Sem movimento',
+      emp._adiantamento ? 'Sim' : 'Não'
+    ];
+    // Status de cada atividade na competência
+    ATIVS.forEach(atv => {
+      const ent = idx[emp.id + '|' + atv.id];
+      let val;
+      if (!ent || ent.nt)            val = 'N/T';            // não se aplica
+      else if (ent.nao_ocorreu)      val = 'Não ocorreu';
+      else if (ent.data_conclusao)   val = ent.data_conclusao.split('-').reverse().join('/'); // DD/MM/AAAA
+      else                            val = 'Pendente';
+      row.push(val);
+    });
+    aoa.push(row);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  // larguras: empresa larga, analista média, atividades estreitas
+  ws['!cols'] = [{wch:8},{wch:38},{wch:22},{wch:12},{wch:15},{wch:13},
+                 ...ATIVS.map(() => ({wch:11}))];
+  const wb = XLSX.utils.book_new();
+  const sheetName = compLabel ? compLabel.replace('/', '-') : 'Carteiras';
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, `${APP_SLUG}_carteiras_${compLabel.replace('/', '-')}.xlsx`);
+  toast('Carteiras exportadas!', 'ok');
+}
+
+function filterCartRows(q) {
+  const s = q.toLowerCase();
+  document.querySelectorAll('#tbody-cart tr').forEach(tr => {
+    const nm = tr.querySelector('.co-nm')?.textContent.toLowerCase() || '';
+    tr.style.display = nm.includes(s) ? '' : 'none';
+  });
+}
+
+// ============================================================
+// CARTEIRAS — wrappers Admin / Gestor
+// ============================================================
+// Total de vidas do departamento na competência ativa (respeita vigência)
+async function getDeptVidas() {
+  if (!COMP) return 0;
+  const { data: emps } = await sb.from('empresas')
+    .select('id, funcionarios, status, data_inicio, data_fim');
+  const first = `${COMP.ano}-${String(COMP.mes).padStart(2,'0')}-01`;
+  const last  = new Date(COMP.ano, COMP.mes, 0).toISOString().split('T')[0];
+  const vigentes = (emps || []).filter(e => {
+    const inicioOk = !e.data_inicio || e.data_inicio <= last;
+    const fimOk    = !e.data_fim    || e.data_fim    >= first;
+    return inicioOk && fimOk;
+  });
+  const ids = vigentes.map(e => e.id);
+  if (!ids.length) return 0;
+  const { data: ec } = await sb.from('empresa_competencia')
+    .select('empresa_id, funcionarios')
+    .eq('competencia_id', COMP.id)
+    .in('empresa_id', ids);
+  const ecIdx = {};
+  (ec || []).forEach(x => { ecIdx[x.empresa_id] = x.funcionarios; });
+  return vigentes.reduce((s, e) =>
+    s + (ecIdx[e.id] !== undefined ? (ecIdx[e.id] || 0) : (e.funcionarios || 0)), 0);
+}
+
+async function renderAdminCart() {
+  const el = eid('v-admin');
+  show('v-admin'); hide('v-analista'); hide('v-gestor');
+  await renderCarteiras(el, true);
+}
+
+async function renderGestorCart() {
+  const el = eid('v-gestor');
+  show('v-gestor'); hide('v-analista'); hide('v-admin');
+  await renderCarteiras(el, false);
+}
+
+// ============================================================
+// BULK ANALYST ASSIGNMENT
+// ============================================================
+function toggleEmpSelect(cb) {
+  if (cb.checked) SELECTED_EMPS.add(cb.value);
+  else            SELECTED_EMPS.delete(cb.value);
+  updateBulkBar();
+}
+
+function toggleAllEmps(cbAll) {
+  document.querySelectorAll('.emp-check').forEach(cb => {
+    cb.checked = cbAll.checked;
+    if (cbAll.checked) SELECTED_EMPS.add(cb.value);
+    else               SELECTED_EMPS.delete(cb.value);
+  });
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = eid('bulk-bar');
+  if (!bar) return;
+  const cnt = SELECTED_EMPS.size;
+  if (cnt > 0) {
+    bar.classList.add('show');
+    eid('bulk-count').textContent = `${cnt} empresa${cnt !== 1 ? 's' : ''} selecionada${cnt !== 1 ? 's' : ''}`;
+  } else {
+    bar.classList.remove('show');
+  }
+}
+
+function clearBulkSelection() {
+  SELECTED_EMPS.clear();
+  document.querySelectorAll('.emp-check').forEach(cb => cb.checked = false);
+  const cbAll = eid('cb-all');
+  if (cbAll) cbAll.checked = false;
+  updateBulkBar();
+}
+
+function openBulkModal() {
+  if (!SELECTED_EMPS.size) { toast('Selecione pelo menos uma empresa.', 'err'); return; }
+  const sel = eid('bulk-anal-select');
+  sel.innerHTML = ANALISTAS.map(a =>
+    `<option value="${a.id}">${escHtml(a.nome)}</option>`
+  ).join('');
+  const cnt = SELECTED_EMPS.size;
+  eid('bulk-count-modal').textContent =
+    `${cnt} empresa${cnt !== 1 ? 's' : ''} selecionada${cnt !== 1 ? 's' : ''}`;
+  eid('modal-bulk').classList.add('show');
+}
+
+function closeBulkModal() {
+  eid('modal-bulk').classList.remove('show');
+}
+
+async function saveBulkAssignment() {
+  const analId = eid('bulk-anal-select').value;
+  if (!analId) { toast('Selecione um analista.', 'err'); return; }
+  const ids = [...SELECTED_EMPS];
+  const btn = eid('btn-bulk-save');
+  btn.disabled = true; btn.textContent = 'Atribuindo…';
+
+  // Atualiza empresas.analista_id (permanente — futuras competências herdam este valor)
+  const { error } = await sb.from('empresas')
+    .update({ analista_id: analId })
+    .in('id', ids);
+
+  if (error) {
+    btn.disabled = false; btn.textContent = 'Confirmar atribuição';
+    toast('Erro: ' + error.message, 'err'); return;
+  }
+
+  // Grava histórico: atualiza empresa_competencia.analista_id da competência atual
+  if (COMP) {
+    await sb.from('empresa_competencia')
+      .update({ analista_id: analId })
+      .eq('competencia_id', COMP.id)
+      .in('empresa_id', ids);
+  }
+
+  btn.disabled = false; btn.textContent = 'Confirmar atribuição';
+
+  const an = ANALISTAS.find(a => a.id === analId);
+  toast(`${ids.length} empresa${ids.length!==1?'s':''} atribuída${ids.length!==1?'s':''} para ${an?.nome || 'analista'}!`, 'ok');
+  closeBulkModal();
+  SELECTED_EMPS.clear();
+  await renderAdminCart();
+}
+
+// ============================================================
+// PAINEL EXECUTIVO
+// ============================================================
+async function renderExec() {
+  const el = eid('v-admin');
+  show('v-admin'); hide('v-analista'); hide('v-gestor');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Carregando painel executivo…</div>';
+
+  // 1. Todas as empresas (com vigência)
+  const { data: empsRaw } = await sb.from('empresas')
+    .select('id, status, motivo_inativacao, analista_id, funcionarios, tem_adiantamento, data_inicio, data_fim');
+  const allEmps = empsRaw || [];
+
+  // KPIs globais de cadastro (independem da competência)
+  const total      = allEmps.length;
+  const inativas   = allEmps.filter(e => e.status === 'encerrado').length;
+  const encerradas = allEmps.filter(e => e.motivo_inativacao === 'encerramento').length;
+  const rescindidas= allEmps.filter(e => e.motivo_inativacao === 'rescisao').length;
+
+  // 2. Recorte da COMPETÊNCIA ATIVA — respeita vigência (item 3)
+  const compLabel = COMP ? `${MES_NOMES[COMP.mes-1]}/${COMP.ano}` : '—';
+  let vigentes = [];
+  let ecFuncIdx = {}, ecMovIdx = {}, ecAdiIdx = {}, ecAnalIdx = {};
+
+  if (COMP) {
+    const first = `${COMP.ano}-${String(COMP.mes).padStart(2,'0')}-01`;
+    const last  = new Date(COMP.ano, COMP.mes, 0).toISOString().split('T')[0];
+    vigentes = allEmps.filter(e => {
+      if (e.status === 'encerrado' && e.data_fim && e.data_fim < first) return false;
+      const inicioOk = !e.data_inicio || e.data_inicio <= last;
+      const fimOk    = !e.data_fim    || e.data_fim    >= first;
+      return inicioOk && fimOk;
+    });
+
+    // Atributos mensais da competência
+    const vIds = vigentes.map(e => e.id);
+    if (vIds.length) {
+      const { data: ec } = await sb.from('empresa_competencia')
+        .select('empresa_id, tem_movimento, tem_adiantamento, funcionarios, analista_id')
+        .eq('competencia_id', COMP.id)
+        .in('empresa_id', vIds);
+      (ec || []).forEach(x => {
+        ecFuncIdx[x.empresa_id] = x.funcionarios;
+        ecMovIdx[x.empresa_id]  = x.tem_movimento;
+        ecAdiIdx[x.empresa_id]  = x.tem_adiantamento;
+        ecAnalIdx[x.empresa_id] = x.analista_id;
+      });
+    }
+  } else {
+    // Sem competência: usa empresas ativas (não encerradas) como base
+    vigentes = allEmps.filter(e => e.status !== 'encerrado');
+  }
+
+  // Helpers de atributo mensal com fallback ao cadastro
+  const funcOf = e => ecFuncIdx[e.id] !== undefined ? (ecFuncIdx[e.id] || 0) : (e.funcionarios || 0);
+  const movOf  = e => ecMovIdx[e.id]  !== undefined ? ecMovIdx[e.id]  : (e.status !== 'sem_movimento');
+  const adiOf  = e => ecAdiIdx[e.id]  !== undefined ? ecAdiIdx[e.id]  : e.tem_adiantamento;
+  const analOf = e => ecAnalIdx[e.id] ?? e.analista_id; // analista histórico da competência
+
+  // 3. KPIs da competência (sobre empresas vigentes)
+  const ativas    = vigentes.length;
+  const comAdian  = vigentes.filter(adiOf).length;
+  const semAdian  = ativas - comAdian;
+  const comMov    = vigentes.filter(movOf).length;
+  const semMov    = ativas - comMov;
+  const totalFunc = vigentes.reduce((s, e) => s + funcOf(e), 0);
+
+  // 4. Por analista (sobre vigentes, usando analista histórico da competência)
+  const perAnalyst = ANALISTAS.map(a => {
+    const ae   = vigentes.filter(e => analOf(e) === a.id);
+    const func = ae.reduce((s, e) => s + funcOf(e), 0);
+    const pctCart = ativas > 0 ? Math.round(ae.length / ativas * 100) : 0;
+    return { ...a, qtd: ae.length, func, pctCart };
+  }).sort((a, b) => b.qtd - a.qtd);
+
+  // 5. Produção da competência ativa
+  let prodStats = null;
+  if (COMP) {
+    const { data: ents } = await sb.from('entregas')
+      .select('id, data_conclusao, nao_ocorreu, nt')
+      .eq('competencia_id', COMP.id);
+    const aplic = (ents || []).filter(e => !e.nt);
+    const doneE = aplic.filter(e => e.data_conclusao || e.nao_ocorreu).length;
+    prodStats = {
+      tot: aplic.length, done: doneE, pend: aplic.length - doneE,
+      pct: aplic.length > 0 ? Math.round(doneE / aplic.length * 100) : 0
+    };
+  }
+
+  const pCol = p => p < 40 ? 'var(--red)' : p < 70 ? 'var(--amber)' : 'var(--green)';
+
+  el.innerHTML = `
+    ${COMP ? `<div style="font-size:12px;color:var(--gray-500);margin-bottom:12px">
+      Indicadores da competência <strong style="color:var(--navy)">${compLabel}</strong> · empresas vigentes no período
+    </div>` : `<div style="font-size:12px;color:var(--amber);margin-bottom:12px">
+      Nenhuma competência aberta — exibindo empresas ativas no cadastro.
+    </div>`}
+
+    <div class="exec-grid">
+      ${execCard('Total de Empresas', total, `${inativas} inativa${inativas!==1?'s':''} no cadastro`, 'var(--navy)', total > 0 ? ((total-inativas)/total*100) : 0, 'var(--teal)')}
+      ${execCard(`Ativas em ${compLabel}`, ativas, 'vigentes no período', 'var(--teal)', total > 0 ? ativas/total*100 : 0, 'var(--teal)')}
+      ${execCard('Rescindidas', rescindidas, 'contratos encerrados', 'var(--amber)', 0, '')}
+      ${execCard('Encerradas', encerradas, 'empresas encerradas', 'var(--gray-500)', 0, '')}
+    </div>
+
+    <div class="exec-grid">
+      ${execCard('Vidas Administradas', totalFunc, `em ${compLabel}`, 'var(--blue)', 0, '')}
+      ${execCard('Com Adiantamento', comAdian, `${semAdian} sem adiantamento`, 'var(--green)', ativas > 0 ? comAdian/ativas*100 : 0, 'var(--green)')}
+      ${execCard('Com Movimento', comMov, `${semMov} sem movimento`, 'var(--teal)', ativas > 0 ? comMov/ativas*100 : 0, 'var(--teal)')}
+      ${prodStats ? execCard(`Conclusão ${compLabel}`, prodStats.pct + '%', `${prodStats.pend} atividades pendentes`, pCol(prodStats.pct), prodStats.pct, pCol(prodStats.pct)) : ''}
+    </div>
+
+    ${prodStats ? `
+    <div class="card" style="margin-bottom:16px">
+      <div class="stitle">Produção — ${compLabel}</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div class="prog" style="flex:1;height:10px">
+          <div class="progf" style="width:${prodStats.pct}%;background:${pCol(prodStats.pct)}"></div>
+        </div>
+        <span style="font-size:22px;font-weight:800;color:${pCol(prodStats.pct)};min-width:52px;text-align:right">${prodStats.pct}%</span>
+      </div>
+      <div style="display:flex;gap:24px;font-size:12px;color:var(--gray-500)">
+        <span><strong style="color:var(--green);font-size:14px">${prodStats.done}</strong> concluídas</span>
+        <span><strong style="color:var(--red);font-size:14px">${prodStats.pend}</strong> pendentes</span>
+        <span><strong style="font-size:14px">${prodStats.tot}</strong> aplicáveis</span>
+      </div>
+    </div>` : ''}
+
+    <div id="growth-section" class="card" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <div class="stitle" style="margin-bottom:0">Evolução do Departamento</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px">
+          <span class="fl">De</span>
+          <select id="growth-de" style="width:auto;padding:3px 8px;font-size:11px;height:28px"></select>
+          <span class="fl">até</span>
+          <select id="growth-ate" style="width:auto;padding:3px 8px;font-size:11px;height:28px"></select>
+          <button class="btn btn-secondary" style="padding:4px 12px;font-size:11px" onclick="renderGrowthChart()">Atualizar</button>
+        </div>
+      </div>
+      <div id="growth-chart"><div class="loading"><div class="spinner"></div>Carregando série histórica…</div></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">
+      <div class="card">
+        <div class="stitle">Ranking de Carteiras — empresas por analista</div>
+        ${perAnalyst.length ? perAnalyst.map((a, i) => {
+          const pctBar = ativas > 0 ? Math.round(a.qtd / ativas * 100) : 0;
+          return `<div class="arow">
+            <div class="rank-num">${i+1}</div>
+            <div>
+              <div class="aname">${escHtml(a.nome)}</div>
+              <div class="ameta">${a.func} vidas · ${a.pctCart}% da carteira</div>
+            </div>
+            <div class="apw">
+              <div class="ap"><div class="apf" style="width:${pctBar}%;background:var(--teal)"></div></div>
+              <span class="apct" style="color:var(--navy);min-width:28px">${a.qtd}</span>
+            </div>
+          </div>`;
+        }).join('') : '<p style="font-size:13px;color:var(--gray-400)">Nenhum analista cadastrado.</p>'}
+      </div>
+
+      <div class="card">
+        <div class="stitle">Vidas por analista — funcionários administrados</div>
+        ${perAnalyst.length ? perAnalyst.slice().sort((a,b)=>b.func-a.func).map((a, i) => {
+          const pctBar = totalFunc > 0 ? Math.round(a.func / totalFunc * 100) : 0;
+          return `<div class="arow">
+            <div class="rank-num">${i+1}</div>
+            <div>
+              <div class="aname">${escHtml(a.nome)}</div>
+              <div class="ameta">${a.qtd} emp · ${pctBar}% das vidas</div>
+            </div>
+            <div class="apw">
+              <div class="ap"><div class="apf" style="width:${pctBar}%;background:var(--blue)"></div></div>
+              <span class="apct" style="color:var(--navy);min-width:28px">${a.func}</span>
+            </div>
+          </div>`;
+        }).join('') : '<p style="font-size:13px;color:var(--gray-400)">Nenhum analista cadastrado.</p>'}
+      </div>
+    </div>`;
+
+  // Popula seletores de período e desenha o gráfico
+  await initGrowthControls();
+}
+
+function execCard(label, value, sub, color, pct, barColor) {
+  const barHtml = pct > 0 && barColor
+    ? `<div class="ec-bar"><div class="ec-barf" style="width:${Math.min(pct,100)}%;background:${barColor}"></div></div>`
+    : '';
+  return `<div class="exec-card">
+    <div class="ec-label">${label}</div>
+    <div class="ec-value" style="color:${color}">${value}</div>
+    ${sub ? `<div class="ec-sub">${sub}</div>` : ''}
+    ${barHtml}
+  </div>`;
+}
+
+// ============================================================
+// EVOLUÇÃO DO DEPARTAMENTO — gráfico SVG (item 4)
+// ============================================================
+let GROWTH_COMPS = []; // competências ordenadas asc para os seletores
+
+async function initGrowthControls() {
+  const { data } = await sb.from('competencias').select('*')
+    .order('ano', { ascending: true })
+    .order('mes', { ascending: true });
+  GROWTH_COMPS = data || [];
+
+  const deSel  = eid('growth-de');
+  const ateSel = eid('growth-ate');
+  if (!deSel || !ateSel) return;
+
+  if (!GROWTH_COMPS.length) {
+    eid('growth-chart').innerHTML = '<p style="font-size:13px;color:var(--gray-400)">Nenhuma competência registrada ainda.</p>';
+    return;
+  }
+
+  const opts = GROWTH_COMPS.map(c =>
+    `<option value="${c.id}">${MES_NOMES[c.mes-1]}/${c.ano}</option>`
+  ).join('');
+  deSel.innerHTML  = opts;
+  ateSel.innerHTML = opts;
+
+  // padrão: do primeiro ao último (ou últimos 6 se houver muitos)
+  const startIdx = GROWTH_COMPS.length > 6 ? GROWTH_COMPS.length - 6 : 0;
+  deSel.value  = GROWTH_COMPS[startIdx].id;
+  ateSel.value = GROWTH_COMPS[GROWTH_COMPS.length - 1].id;
+
+  await renderGrowthChart();
+}
+
+async function renderGrowthChart() {
+  const cont = eid('growth-chart');
+  if (!cont) return;
+  const deId  = eid('growth-de')?.value;
+  const ateId = eid('growth-ate')?.value;
+  if (!deId || !ateId) return;
+
+  const iDe  = GROWTH_COMPS.findIndex(c => c.id === deId);
+  const iAte = GROWTH_COMPS.findIndex(c => c.id === ateId);
+  if (iDe < 0 || iAte < 0) return;
+
+  const lo = Math.min(iDe, iAte), hi = Math.max(iDe, iAte);
+  const range = GROWTH_COMPS.slice(lo, hi + 1);
+  if (!range.length) { cont.innerHTML = '<p style="font-size:13px;color:var(--gray-400)">Selecione um período válido.</p>'; return; }
+
+  cont.innerHTML = '<div class="loading"><div class="spinner"></div>Calculando série…</div>';
+
+  // Cadastro com vigência (para contar empresas e somar vidas por competência)
+  const { data: empsRaw } = await sb.from('empresas')
+    .select('id, funcionarios, status, data_inicio, data_fim');
+  const allEmps = empsRaw || [];
+
+  // empresa_competencia de todas as competências do range (funcionarios mensal)
+  const compIds = range.map(c => c.id);
+  const { data: ecRaw } = await sb.from('empresa_competencia')
+    .select('empresa_id, competencia_id, funcionarios')
+    .in('competencia_id', compIds);
+  const ecByComp = {};
+  (ecRaw || []).forEach(x => {
+    (ecByComp[x.competencia_id] = ecByComp[x.competencia_id] || {})[x.empresa_id] = x.funcionarios;
+  });
+
+  // série: para cada competência, empresas vigentes + vidas
+  const serie = range.map(c => {
+    const first = `${c.ano}-${String(c.mes).padStart(2,'0')}-01`;
+    const last  = new Date(c.ano, c.mes, 0).toISOString().split('T')[0];
+    const vig = allEmps.filter(e => {
+      if (e.status === 'encerrado' && e.data_fim && e.data_fim < first) return false;
+      const inicioOk = !e.data_inicio || e.data_inicio <= last;
+      const fimOk    = !e.data_fim    || e.data_fim    >= first;
+      return inicioOk && fimOk;
+    });
+    const ecIdx = ecByComp[c.id] || {};
+    const vidas = vig.reduce((s, e) =>
+      s + (ecIdx[e.id] !== undefined ? (ecIdx[e.id] || 0) : (e.funcionarios || 0)), 0);
+    return { label: `${MES_NOMES[c.mes-1]}/${String(c.ano).slice(2)}`, empresas: vig.length, vidas };
+  });
+
+  cont.innerHTML = buildGrowthSVG(serie);
+}
+
+function buildGrowthSVG(serie) {
+  if (!serie.length) return '<p style="font-size:13px;color:var(--gray-400)">Sem dados no período.</p>';
+
+  const W = 760, H = 240, padL = 44, padR = 44, padT = 16, padB = 34;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const n = serie.length;
+
+  const maxEmp = Math.max(1, ...serie.map(s => s.empresas));
+  const maxVid = Math.max(1, ...serie.map(s => s.vidas));
+
+  const xAt = i => n === 1 ? padL + plotW/2 : padL + (plotW * i / (n - 1));
+  const yEmp = v => padT + plotH - (plotH * v / maxEmp);
+  const yVid = v => padT + plotH - (plotH * v / maxVid);
+
+  const lineEmp = serie.map((s, i) => `${xAt(i).toFixed(1)},${yEmp(s.empresas).toFixed(1)}`).join(' ');
+  const lineVid = serie.map((s, i) => `${xAt(i).toFixed(1)},${yVid(s.vidas).toFixed(1)}`).join(' ');
+
+  const dotsEmp = serie.map((s, i) =>
+    `<circle cx="${xAt(i).toFixed(1)}" cy="${yEmp(s.empresas).toFixed(1)}" r="3.5" fill="#0d7377"><title>${s.label}: ${s.empresas} empresas</title></circle>`
+  ).join('');
+  const dotsVid = serie.map((s, i) =>
+    `<circle cx="${xAt(i).toFixed(1)}" cy="${yVid(s.vidas).toFixed(1)}" r="3.5" fill="#2563eb"><title>${s.label}: ${s.vidas} vidas</title></circle>`
+  ).join('');
+
+  const xLabels = serie.map((s, i) =>
+    `<text x="${xAt(i).toFixed(1)}" y="${H - 12}" font-size="10" fill="#6b7280" text-anchor="middle">${s.label}</text>`
+  ).join('');
+
+  // gridlines horizontais (4)
+  const grid = [0,0.25,0.5,0.75,1].map(t => {
+    const y = padT + plotH * t;
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#e5e7eb" stroke-width="1"/>`;
+  }).join('');
+
+  // labels de eixo (empresas à esquerda, vidas à direita)
+  const yLabelsEmp = [0,0.5,1].map(t => {
+    const y = padT + plotH - plotH * t;
+    return `<text x="${padL-6}" y="${(y+3).toFixed(1)}" font-size="9" fill="#0d7377" text-anchor="end">${Math.round(maxEmp*t)}</text>`;
+  }).join('');
+  const yLabelsVid = [0,0.5,1].map(t => {
+    const y = padT + plotH - plotH * t;
+    return `<text x="${W-padR+6}" y="${(y+3).toFixed(1)}" font-size="9" fill="#2563eb" text-anchor="start">${Math.round(maxVid*t)}</text>`;
+  }).join('');
+
+  return `
+    <div style="display:flex;gap:16px;margin-bottom:8px;font-size:11px;align-items:center;flex-wrap:wrap">
+      <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:18px;height:3px;background:#0d7377;display:inline-block;border-radius:2px"></span>Empresas</span>
+      <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:18px;height:3px;background:#2563eb;display:inline-block;border-radius:2px"></span>Vidas administradas</span>
+    </div>
+    <div style="overflow-x:auto">
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:520px;height:auto;font-family:inherit">
+        ${grid}
+        ${yLabelsEmp}${yLabelsVid}
+        <polyline points="${lineEmp}" fill="none" stroke="#0d7377" stroke-width="2" stroke-linejoin="round"/>
+        <polyline points="${lineVid}" fill="none" stroke="#2563eb" stroke-width="2" stroke-linejoin="round" stroke-dasharray="0"/>
+        ${dotsEmp}${dotsVid}
+        ${xLabels}
+      </svg>
+    </div>
+    <div style="display:flex;gap:24px;font-size:12px;color:var(--gray-500);margin-top:8px">
+      <span>Início: <strong style="color:var(--navy)">${serie[0].empresas}</strong> emp · <strong style="color:var(--blue)">${serie[0].vidas}</strong> vidas</span>
+      <span>Atual: <strong style="color:var(--navy)">${serie[serie.length-1].empresas}</strong> emp · <strong style="color:var(--blue)">${serie[serie.length-1].vidas}</strong> vidas</span>
+      ${serie.length > 1 ? `<span>Δ Vidas: <strong style="color:${serie[serie.length-1].vidas - serie[0].vidas >= 0 ? 'var(--green)':'var(--red)'}">${serie[serie.length-1].vidas - serie[0].vidas >= 0 ? '+' : ''}${serie[serie.length-1].vidas - serie[0].vidas}</strong></span>` : ''}
+    </div>`;
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function eid(id) { return document.getElementById(id) }
+function show(id) { const el = eid(id); el.classList.remove('hidden'); el.style.removeProperty('display') }
+function hide(id) { const el = eid(id); el.classList.add('hidden');    el.style.display = 'none' }
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y, m, dd] = d.split('-');
+  return `${dd}/${m}/${y}`;
+}
+
+function setActiveTab(navId, tab) {
+  document.querySelectorAll(`#${navId} .tab`).forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === tab);
+  });
+}
+
+function escHtml(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s || '').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+let _toastT;
+function toast(msg, type = 'inf') {
+  const el = eid('toast');
+  el.textContent = msg;
+  el.className = type;
+  show('toast');
+  clearTimeout(_toastT);
+  _toastT = setTimeout(() => hide('toast'), 3500);
+}
+
+// Fecha modais no overlay
+eid('modal-date').addEventListener('click', e => { if (e.target === eid('modal-date')) closeModal(); });
+eid('modal-emp').addEventListener('click',  e => { if (e.target === eid('modal-emp'))  closeEmpModal(); });
+eid('modal-inativar').addEventListener('click', e => { if (e.target === eid('modal-inativar')) closeInativarModal(); });
+eid('modal-bulk').addEventListener('click', e => { if (e.target === eid('modal-bulk')) closeBulkModal(); });
+
+// Fecha comp-picker ao clicar fora
+document.addEventListener('click', e => {
+  const pk = eid('comp-picker');
+  if (pk && !pk.classList.contains('hidden')) {
+    if (!pk.contains(e.target) && e.target !== eid('hd-comp') && !eid('hd-comp').contains(e.target)) {
+      pk.classList.add('hidden');
+    }
+  }
+});
+
+// Enter no campo de senha → login
+document.addEventListener('DOMContentLoaded', () => {
+  eid('li-pass')?.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+});
+
+// ============================================================
+// START
+// ============================================================
+init();
+</script>
+</body>
+</html>

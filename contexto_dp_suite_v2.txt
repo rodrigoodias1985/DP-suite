@@ -1,0 +1,131 @@
+OBJETIVO: Sistema web de controle de fechamento mensal de departamento pessoal — 11 analistas, ~403 empresas, 12 atividades por competencia, substituindo planilhas Excel.
+
+STACK: Supabase (PostgreSQL + Auth + RLS) . HTML/JS vanilla . Netlify . SheetJS (XLSX) . SVG nativo para graficos
+
+DECISOES:
+1. Single-file app (index.html) sem framework, sem build step
+2. Perfis: admin, gestor, analista
+3. 12 atividades fixas com regras NT automaticas: Filial sem mov = tudo NT; Matriz sem mov = so eSocial+DCTF ativos; sem adiantamento = grupo adiantamento NT; Filial = DARF+eSocial+DCTF sempre NT; Domestica = 7 atividades sempre NT (apontamento, previa, ok+cliente, fgts, provisoes, sindic, dctf)
+4. empresa_competencia como snapshot mensal: tem_movimento, tem_adiantamento, funcionarios, analista_id — fallback para empresas.* quando NULL
+5. analista_id em empresa_competencia e fonte de verdade para historico de carteiras — empresas.analista_id e o padrao para futuras competencias
+6. Vigencia por data_inicio/data_fim em empresas — filtrada em todas as queries de competencia (data_inicio <= compLastDay AND data_fim >= compFirstDay)
+7. Exclusao logica de empresas: status=encerrado + motivo (rescisao/encerramento) + data_fim
+8. Competencias concluidas permanecem acessiveis e editaveis — reversao automatica para aberta se entrega removida
+9. APP_NAME = "DP+ Suite" centralizado — renderBrand() injeta em login e header
+10. Exportacao sempre .xlsx via SheetJS
+11. Upsert de empresa_competencia sempre com onConflict: empresa_id,competencia_id
+12. MODAL_ORIGIN, IMPORT_MODE, F_CART_*, SELECTED_EMPS resetados em boot() a cada login
+13. Enum de tipo de empresa chama-se tipo_empresa_t (nao tipo_empresa) — valor 'Domestica' adicionado via ALTER TYPE tipo_empresa_t ADD VALUE
+
+ENTREGUES:
+- Login/logout Supabase Auth, boot por perfil
+- Analista: checklist por competencia, filtros adiantamento/movimento, sumbar com vidas, chips de data editaveis, status Nao Ocorreu
+- Gestor: dashboard 4 KPIs + drill-down por analista, aba Carteiras com filtros e edicao
+- Admin: 6 abas — Competencias, Empresas, Carteiras, Importacao, Painel Executivo, Visao Geral
+- Carteiras admin/gestor: tabela 12 atividades, chips editaveis, filtros (analista/mov/adiant), busca, exportacao Excel, bulk bar
+- Atribuicao em lote: multi-select + modal, atualiza empresas.analista_id (permanente) + empresa_competencia.analista_id (historico comp atual)
+- Painel Executivo: 8 KPIs com vigencia, producao, rankings empresas+vidas por analista historico, grafico SVG evolucao departamento
+- Importacao 3 modos: Empresas (upsert por codigo), Funcionarios por Competencia, Responsaveis por Competencia
+- Exportacao Excel: empresas e carteiras (.xlsx com 12 atividades + status)
+- Competencias: abertura, exclusao (RPC SECURITY DEFINER), seletor com badge concluida, reversao automatica de status
+- renderAnalista busca empresas via ec.analista_id para competencia atual, fallback empresas.analista_id
+- renderCarteiras usa _analista_id (ec.analista_id ?? emp.analista_id) para display e filtro client-side
+- renderExec usa analOf(e) = ecAnalIdx[e.id] ?? e.analista_id para perAnalyst
+- _reRender() roteia para view correta apos saveDate/clearDate/saveNaoOcorreu via MODAL_ORIGIN
+- checkCompConcluida() promove E reverte status automaticamente
+- clearDate() chama checkCompConcluida() para permitir reversao
+- Tipo Domestica: enum tipo_empresa_t atualizado, modal cadastro, importacao (aceita com/sem acento) e abrir_competencia v5 com 7 atividades NT
+- migration_fase4.sql: constraint UNIQUE(empresa_id, competencia_id) + abrir_competencia v3
+- migration_fase5.sql: coluna analista_id em empresa_competencia + backfill + abrir_competencia v4 + RLS entregas historico
+- migration_fase6.sql (funcao apenas, sem ALTER TYPE): abrir_competencia v5 com regra Domestica
+
+PENDENTES:
+1. Testes de producao controlada: importar base real 403 empresas, cadastrar usuarios reais, operacao paralela, validar indicadores e performance
+2. migration_powerbi_views.sql: views vw_empresas_ativas, vw_carteiras_analistas, vw_indicadores_operacionais, vw_producao_competencias — postergar para pos-producao
+3. ATS (recrutamento): Supabase + HTML/JS + Netlify + Claude API via Edge Functions para resumo de curriculos + OpenStreetMap/Nominatim para distancia + 3 perfis (Operacional/Diretoria/RH) + SLA por etapa. Proximo passo: modelagem de dados (tabelas, campos, estados de workflow, permissoes por perfil, campos via IA)
+
+CODIGO_ATUAL:
+- Arquivos: index.html (~3187 linhas, arquivo unico)
+
+Estado global:
+ME, PERFIL, NOME, COMP, COMPS=[], ATIVS=[], ANALISTAS[]
+MODAL_ID, MODAL_ORIGIN='analista', EDIT_EMP_ID
+F_ADIAN, F_MOV
+F_CART_ANAL, F_CART_ADIAN, F_CART_MOV
+SELECTED_EMPS=Set(), IMPORT_MODE='empresas'
+GROWTH_COMPS=[]
+APP_NAME='DP+ Suite', APP_SLUG='dp-suite'
+
+Funcoes:
+init() -> boot() -> renderAnalista | renderGestor | renderAdmin
+loadComp() -> carrega status in [aberta, concluida]
+renderBrand() -> injeta APP_NAME em #login-logo-text e #hd-logo-text
+renderAnalista() -> ec.analista_id query -> fallback empresas.analista_id -> vigencia -> empsComAtributos -> chips
+renderGestor() -> KPIs + drill-down
+renderAdminComp() -> renderAdminEmp() -> renderAdminCart() -> renderAdminImport() -> renderExec()
+renderCarteiras(el, isAdmin) -> compartilhada admin+gestor, _analista_id client-side
+renderAdminCart() -> show v-admin, renderCarteiras(el, true)
+renderGestorCart() -> show v-gestor, renderCarteiras(el, false)
+getDeptVidas() -> total vidas dept com vigencia+fallback ec
+renderExec() -> KPIs+vigencia+analOf+perAnalyst+initGrowthControls()
+initGrowthControls() -> GROWTH_COMPS -> seletores -> renderGrowthChart()
+renderGrowthChart() -> serie -> buildGrowthSVG()
+saveDate() -> _reRender() -> checkCompConcluida()
+clearDate() -> _reRender() -> checkCompConcluida()
+saveNaoOcorreu() -> _reRender() -> checkCompConcluida()
+_reRender() -> renderAdminCart | renderGestorCart | renderAnalista via MODAL_ORIGIN
+checkCompConcluida() -> promove aberta->concluida OU reverte concluida->aberta
+openDate(el) -> popula modal-date via data-* attrs
+saveEmp() -> upsert empresas -> renderAdminEmp()
+deleteEmpFisico() -> delete empresas -> renderAdminEmp()
+confirmarInativacao() -> update status=encerrado + data_fim + motivo -> renderAdminEmp()
+reativarEmp() -> update status=ativo -> renderAdminEmp()
+abrirComp() -> RPC abrir_competencia(mes, ano) -> loadComp()
+deletarComp() -> RPC excluir_competencia(id) -> loadComp()
+saveBulkAssignment() -> update empresas.analista_id + update ec.analista_id eq comp atual -> renderAdminCart()
+toggleEmpSelect() -> SELECTED_EMPS -> updateBulkBar()
+toggleAllEmps() -> todos .emp-check -> updateBulkBar()
+exportEmps() -> XLSX window._adminEmps -> dp-suite_empresas_DATE.xlsx
+exportCarteiras() -> XLSX window._cartExport -> dp-suite_carteiras_COMP.xlsx
+setImportMode(mode) -> IMPORT_MODE -> renderAdminImport()
+renderImportEmpresas() -> renderImportFunc() -> renderImportResp()
+downloadImportTemplate() -> downloadFuncTemplate() -> downloadRespTemplate()
+parseImportFile() -> parseFuncImportFile() -> parseRespImportFile()
+validateAndPreviewImport() -> validateAndPreviewFunc() -> validateAndPreviewResp()
+executeImport() -> upsert empresas por codigo
+executeFuncImport() -> upsert ec (empresa_id, competencia_id, funcionarios)
+executeRespImport() -> upsert ec (empresa_id, competencia_id, analista_id)
+aTab(btn) -> comp|emp|cart|import|exec|dash
+gTab(btn) -> dash|cart
+selectComp(id) -> COMP -> aTab(ativo) | renderGestor | renderAnalista
+updateCompHeader() -> badge concluida em #hd-comp
+toggleCompPicker() -> lista comps com tag concluida
+execCard(label, value, sub, color, pct, barColor) -> HTML exec-card
+buildGrowthSVG(serie) -> SVG polilinhas empresas+vidas
+escHtml() escAttr() toast() eid() show() hide() setFiltro() filterCartRows() filterRows()
+
+Tabelas:
+competencias(id, mes, ano, status[aberta|concluida])
+empresas(id, codigo, razao_social, tipo_empresa[Matriz|Filial|Domestica], status[ativo|sem_movimento|encerrado], analista_id, funcionarios, tem_adiantamento, data_inicio, data_fim, motivo_inativacao)
+empresa_competencia(id, empresa_id, competencia_id, tem_movimento, tem_adiantamento, funcionarios, analista_id) UNIQUE(empresa_id, competencia_id)
+entregas(id, competencia_id, empresa_id, atividade_id, data_conclusao, nt, nao_ocorreu, usuario_id, updated_at)
+atividades(id, nome, label_curto, grupo, ordem, ativo)
+usuarios(id, nome, perfil[admin|gestor|analista], ativo)
+
+RLS:
+empresas: SELECT=qualquer autenticado; INSERT/UPDATE/DELETE=admin
+empresa_competencia: SELECT=true; ALL=admin+gestor
+entregas: SELECT/UPDATE=admin+gestor OU ec.analista_id=auth.uid() OU fallback empresas.analista_id quando ec.analista_id IS NULL
+competencias: gerenciadas via RPC excluir_competencia SECURITY DEFINER
+
+REGRAS:
+- TESTING_PROTOCOL obrigatorio em toda entrega: revisao tecnica + testes por perfil (admin/gestor/analista) + regressao + relatorio com resultado explicito
+- Validar sintaxe JS com new Function() via Node antes de entregar
+- Validar zero handlers orfaos (onclick sem funcao definida)
+- Validar tags HTML estaticas balanceadas
+- analista_id de ec tem prioridade sobre empresas.analista_id em todas as views — fallback obrigatorio para ec.analista_id IS NULL
+- Migrations SQL: sempre usar IF NOT EXISTS antes de criar constraint ou coluna
+- Para adicionar valor ao enum usar: ALTER TYPE tipo_empresa_t ADD VALUE IF NOT EXISTS 'valor'
+- Cada informacao de negocio muda em apenas um lugar no codigo — sem duplicar logica entre views
+- Importacao de tipo empresa: normalizar via normalize('NFD') + replace acentos antes de comparar
+- abrir_competencia v5 e a versao atual — nao sobrescrever sem incluir todas as regras NT (Filial, Matriz, Domestica, adiantamento)
