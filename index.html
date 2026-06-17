@@ -933,11 +933,7 @@ async function renderAnalista() {
   if (F_MOV   === 'nao') emps = emps.filter(e => !e._movimento);
 
   const ids2 = empsAll.map(e => e.id);
-  const { data: ents } = await sb
-    .from('entregas')
-    .select('id, empresa_id, atividade_id, data_conclusao, nt, nao_ocorreu')
-    .eq('competencia_id', COMP.id)
-    .in('empresa_id', ids2);
+  const ents = await fetchAllEntregas(COMP.id, ids2);
 
   const idx = {};
   (ents || []).forEach(e => { idx[e.empresa_id + '|' + e.atividade_id] = e; });
@@ -1137,12 +1133,28 @@ async function saveNaoOcorreu() {
 
 async function checkCompConcluida() {
   if (!COMP) return;
-  const { data: all } = await sb.from('entregas')
-    .select('id, data_conclusao, nao_ocorreu, nt')
+
+  // Usa COUNT para evitar limite de linhas do Supabase (ex.: 390 emp × 12 atv = 4680 rows)
+  const { count: total } = await sb.from('entregas')
+    .select('id', { count: 'exact', head: true })
     .eq('competencia_id', COMP.id)
     .eq('nt', false);
-  if (!all?.length) return;
-  const allDone = all.every(e => e.data_conclusao || e.nao_ocorreu);
+
+  if (!total) return;
+
+  const { count: comData } = await sb.from('entregas')
+    .select('id', { count: 'exact', head: true })
+    .eq('competencia_id', COMP.id)
+    .eq('nt', false)
+    .not('data_conclusao', 'is', null);
+
+  const { count: comNO } = await sb.from('entregas')
+    .select('id', { count: 'exact', head: true })
+    .eq('competencia_id', COMP.id)
+    .eq('nt', false)
+    .eq('nao_ocorreu', true);
+
+  const allDone = ((comData || 0) + (comNO || 0)) >= total;
 
   if (allDone && COMP.status !== 'concluida') {
     const { error } = await sb.from('competencias')
@@ -1181,21 +1193,29 @@ async function renderGestor() {
     return;
   }
 
-  const { data: ents, error } = await sb
-    .from('entregas')
-    .select(`
-      id, empresa_id, atividade_id, data_conclusao, nt, nao_ocorreu,
-      empresas ( id, codigo, razao_social, analista_id, tipo_empresa, status, funcionarios, data_inicio, data_fim ),
-      atividades ( id, nome, label_curto, grupo, tipo_prazo, alerta_horas )
-    `)
-    .eq('competencia_id', COMP.id);
+  // Busca empresas, atividades e entregas separadamente para contornar
+  // o limite de 1000 linhas do Supabase (join retornaria 4680+ rows)
+  const [empsRes, atvsRes] = await Promise.all([
+    sb.from('empresas').select('id, codigo, razao_social, analista_id, tipo_empresa, status, funcionarios, data_inicio, data_fim'),
+    sb.from('atividades').select('id, nome, label_curto, grupo, tipo_prazo, alerta_horas').eq('ativo', true)
+  ]);
+  const empIdx = {};
+  (empsRes.data || []).forEach(e => { empIdx[e.id] = e; });
+  const atvIdx = {};
+  (atvsRes.data || []).forEach(a => { atvIdx[a.id] = a; });
 
-  if (error) {
-    el.innerHTML = `<div class="empty"><h3>Erro ao carregar</h3><p>${error.message}</p></div>`;
-    return;
-  }
+  const allEmpIds = (empsRes.data || []).map(e => e.id);
+  const rawEnts = allEmpIds.length
+    ? await fetchAllEntregas(COMP.id, allEmpIds, 'id, empresa_id, atividade_id, data_conclusao, nt, nao_ocorreu')
+    : [];
 
-  const all   = ents || [];
+  // Reconstrói estrutura compatível com o restante da função
+  const all = rawEnts.map(e => ({
+    ...e,
+    empresas: empIdx[e.empresa_id] || null,
+    atividades: atvIdx[e.atividade_id] || null
+  }));
+
   const gFirstDay = `${COMP.ano}-${String(COMP.mes).padStart(2,'0')}-01`;
   const gLastDay  = new Date(COMP.ano, COMP.mes, 0).toISOString().split('T')[0];
   const aplic = all.filter(e => {
@@ -2358,9 +2378,23 @@ async function executeImport() {
   window._importRows = null;
 }
 
-// ============================================================
-// RE-RENDER CONTEXT (redireciona após salvar no modal de data)
-// ============================================================
+// Busca TODAS as entregas de uma competência para um conjunto de empresas,
+// paginando em lotes de 80 (80 × 12 atividades = 960 < limite de 1000 do Supabase)
+async function fetchAllEntregas(competenciaId, empresaIds, extraSelect) {
+  const BATCH = 80;
+  const sel = extraSelect ||
+    'id, empresa_id, atividade_id, data_conclusao, nt, nao_ocorreu';
+  let all = [];
+  for (let i = 0; i < empresaIds.length; i += BATCH) {
+    const batch = empresaIds.slice(i, i + BATCH);
+    const { data } = await sb.from('entregas')
+      .select(sel)
+      .eq('competencia_id', competenciaId)
+      .in('empresa_id', batch);
+    all = all.concat(data || []);
+  }
+  return all;
+}
 async function _reRender() {
   if      (MODAL_ORIGIN === 'admin-cart')   await renderAdminCart();
   else if (MODAL_ORIGIN === 'gestor-cart')  await renderGestorCart();
@@ -2435,13 +2469,9 @@ async function renderCarteiras(el, isAdmin) {
   if (F_CART_MOV   === 'sim') emps = emps.filter(e => e._movimento);
   if (F_CART_MOV   === 'nao') emps = emps.filter(e => !e._movimento);
 
-  // Busca entregas para TODAS as empresas (antes do filtro visual) — necessário para o índice
+  // Busca entregas paginando em lotes (contorna limite de 1000 linhas do Supabase)
   const idsAll = empsComAtributos.map(e => e.id);
-  const { data: ents } = await sb
-    .from('entregas')
-    .select('id, empresa_id, atividade_id, data_conclusao, nt, nao_ocorreu')
-    .eq('competencia_id', COMP.id)
-    .in('empresa_id', idsAll);
+  const ents = await fetchAllEntregas(COMP.id, idsAll);
 
   const idx = {};
   (ents || []).forEach(e => { idx[e.empresa_id + '|' + e.atividade_id] = e; });
@@ -2855,9 +2885,10 @@ async function renderExec() {
   // 5. Produção da competência ativa
   let prodStats = null;
   if (COMP) {
-    const { data: ents } = await sb.from('entregas')
-      .select('id, data_conclusao, nao_ocorreu, nt')
-      .eq('competencia_id', COMP.id);
+    const vIds2 = vigentes.map(e => e.id);
+    const ents = vIds2.length
+      ? await fetchAllEntregas(COMP.id, vIds2, 'id, data_conclusao, nao_ocorreu, nt')
+      : [];
     const aplic = (ents || []).filter(e => !e.nt);
     const doneE = aplic.filter(e => e.data_conclusao || e.nao_ocorreu).length;
     prodStats = {
