@@ -430,6 +430,37 @@
     </div>
     <button class="btn btn-primary btn-login" id="btn-li" onclick="doLogin()">Entrar</button>
     <div class="login-err hidden" id="li-err"></div>
+    <div style="text-align:center;margin-top:14px">
+      <a href="#" id="li-link-rec" onclick="mostrarRecuperacao();return false"
+         style="font-size:12px;color:var(--teal);text-decoration:none">Esqueci minha senha</a>
+    </div>
+  </div>
+
+  <!-- Seção recuperação de senha (mesma .login-box, alternada via JS) -->
+  <div class="login-box hidden" id="box-recovery">
+    <div class="login-logo">
+      <h1 id="rec-logo-text">DP+ <span>Suite</span></h1>
+      <p>Recuperação de senha</p>
+    </div>
+    <p style="font-size:13px;color:var(--gray-500);margin-bottom:20px;line-height:1.6">
+      Informe seu e-mail e enviaremos um link para você definir uma nova senha.
+    </p>
+    <div class="login-field">
+      <label>E-mail</label>
+      <input type="email" id="rec-email" placeholder="seu@email.com" autocomplete="email"/>
+    </div>
+    <button class="btn btn-primary btn-login" id="btn-rec" onclick="enviarRecuperacao()">
+      Enviar link de recuperação
+    </button>
+    <div class="login-err hidden" id="rec-err"></div>
+    <div class="hidden" id="rec-ok"
+         style="margin-top:12px;padding:10px 14px;background:#dcfce7;color:#15803d;border-radius:var(--radius);font-size:13px">
+      ✓ Link enviado! Verifique sua caixa de entrada.
+    </div>
+    <div style="text-align:center;margin-top:14px">
+      <a href="#" onclick="mostrarLogin();return false"
+         style="font-size:12px;color:var(--gray-400);text-decoration:none">← Voltar ao login</a>
+    </div>
   </div>
 </div>
 
@@ -447,6 +478,7 @@
         <div class="hd-name" id="hd-name">—</div>
         <div style="text-align:right"><span class="hd-badge" id="hd-badge">—</span></div>
       </div>
+      <button class="btn-sair" onclick="openAlterarSenha()" title="Alterar senha">🔑</button>
       <button class="btn-sair" onclick="doLogout()">Sair</button>
     </div>
   </header>
@@ -593,6 +625,29 @@
     <div class="mactions">
       <button class="btn btn-secondary" onclick="closeBulkModal()">Cancelar</button>
       <button class="btn btn-primary" id="btn-bulk-save" onclick="saveBulkAssignment()">Confirmar atribuição</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal alterar senha -->
+<div class="overlay" id="modal-senha">
+  <div class="modal" style="max-width:340px">
+    <h3>Alterar senha</h3>
+    <p>Defina uma nova senha para sua conta.</p>
+    <div class="field">
+      <label>Nova senha</label>
+      <input type="password" id="ns-pass" placeholder="Mínimo 8 caracteres"
+             oninput="validarNovaSenha()" autocomplete="new-password"/>
+    </div>
+    <div class="field">
+      <label>Confirmar nova senha</label>
+      <input type="password" id="ns-conf" placeholder="Repita a senha"
+             oninput="validarNovaSenha()" autocomplete="new-password"/>
+    </div>
+    <div id="ns-err" class="login-err hidden" style="margin-bottom:12px"></div>
+    <div class="mactions">
+      <button class="btn btn-secondary" onclick="closeAlterarSenha()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-ns" onclick="salvarNovaSenha()" disabled>Salvar</button>
     </div>
   </div>
 </div>
@@ -3193,8 +3248,105 @@ function toast(msg, type = 'inf') {
   _toastT = setTimeout(() => hide('toast'), 3500);
 }
 
-// Fecha modais no overlay
-eid('modal-date').addEventListener('click', e => { if (e.target === eid('modal-date')) closeModal(); });
+// ============================================================
+// RECUPERAÇÃO DE SENHA (tela de login)
+// ============================================================
+function mostrarRecuperacao() {
+  const logoText = document.getElementById('rec-logo-text');
+  if (logoText) {
+    const parts = APP_NAME.split(' ');
+    const last  = parts.pop();
+    logoText.innerHTML = `${parts.join(' ')} <span>${last}</span>`;
+  }
+  document.querySelector('#v-login .login-box').classList.add('hidden');
+  document.getElementById('box-recovery').classList.remove('hidden');
+  document.getElementById('rec-email').focus();
+}
+
+function mostrarLogin() {
+  document.getElementById('box-recovery').classList.add('hidden');
+  document.querySelector('#v-login .login-box').classList.remove('hidden');
+  // Limpa estado da tela de recuperação
+  document.getElementById('rec-email').value = '';
+  document.getElementById('rec-err').classList.add('hidden');
+  document.getElementById('rec-ok').classList.add('hidden');
+}
+
+async function enviarRecuperacao() {
+  const email = document.getElementById('rec-email').value.trim();
+  const btn   = document.getElementById('btn-rec');
+  const err   = document.getElementById('rec-err');
+  const ok    = document.getElementById('rec-ok');
+
+  if (!email) {
+    err.textContent = 'Informe o e-mail.';
+    err.classList.remove('hidden'); return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  err.classList.add('hidden'); ok.classList.add('hidden');
+
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://dpcontrole.netlify.app/auth-callback.html'
+  });
+
+  btn.disabled = false; btn.textContent = 'Enviar link de recuperação';
+
+  if (error) {
+    err.textContent = 'Erro ao enviar. Verifique o e-mail e tente novamente.';
+    err.classList.remove('hidden'); return;
+  }
+
+  ok.classList.remove('hidden');
+}
+
+// ============================================================
+// ALTERAR SENHA (usuário logado)
+// ============================================================
+function openAlterarSenha() {
+  document.getElementById('ns-pass').value = '';
+  document.getElementById('ns-conf').value = '';
+  document.getElementById('ns-err').classList.add('hidden');
+  document.getElementById('btn-ns').disabled = true;
+  document.getElementById('modal-senha').classList.add('show');
+  document.getElementById('ns-pass').focus();
+}
+
+function closeAlterarSenha() {
+  document.getElementById('modal-senha').classList.remove('show');
+}
+
+function validarNovaSenha() {
+  const pass = document.getElementById('ns-pass').value;
+  const conf = document.getElementById('ns-conf').value;
+  document.getElementById('btn-ns').disabled = !(pass.length >= 8 && pass === conf);
+}
+
+async function salvarNovaSenha() {
+  const pass = document.getElementById('ns-pass').value;
+  const btn  = document.getElementById('btn-ns');
+  const err  = document.getElementById('ns-err');
+
+  btn.disabled = true; btn.textContent = 'Salvando…';
+  err.classList.add('hidden');
+
+  const { error } = await sb.auth.updateUser({ password: pass });
+
+  btn.disabled = false; btn.textContent = 'Salvar';
+
+  if (error) {
+    err.textContent = 'Erro ao salvar a senha. Tente novamente.';
+    err.classList.remove('hidden'); return;
+  }
+
+  closeAlterarSenha();
+  toast('Senha alterada com sucesso!', 'ok');
+}
+
+// Fecha modal de senha no overlay
+document.getElementById('modal-senha').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-senha')) closeAlterarSenha();
+});
 eid('modal-emp').addEventListener('click',  e => { if (e.target === eid('modal-emp'))  closeEmpModal(); });
 eid('modal-inativar').addEventListener('click', e => { if (e.target === eid('modal-inativar')) closeInativarModal(); });
 eid('modal-bulk').addEventListener('click', e => { if (e.target === eid('modal-bulk')) closeBulkModal(); });

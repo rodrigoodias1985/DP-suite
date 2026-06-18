@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DP+ Suite — Definir senha</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+    html, body { height: 100% }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      background: #111827;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    :root {
+      --teal:    #0d7377;
+      --teal-d:  #0a5d61;
+      --navy:    #111827;
+      --gray-200:#e5e7eb;
+      --gray-400:#9ca3af;
+      --gray-500:#6b7280;
+      --green:   #16a34a;
+      --red:     #dc2626;
+      --red-bg:  #fee2e2;
+      --white:   #ffffff;
+      --radius:  8px;
+      --radius-lg: 12px;
+    }
+    .box {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 40px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.35);
+    }
+    .logo { text-align: center; margin-bottom: 28px }
+    .logo h1 { font-size: 26px; font-weight: 800; letter-spacing: -1px; color: var(--navy) }
+    .logo h1 span { color: var(--teal) }
+    .logo p { font-size: 12px; color: var(--gray-400); margin-top: 4px }
+
+    /* estados */
+    .state { display: none }
+    .state.active { display: block }
+
+    /* spinner */
+    .spinner-wrap { text-align: center; padding: 20px 0 }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid var(--gray-200);
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin: 0 auto 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg) } }
+    .spinner-wrap p { font-size: 13px; color: var(--gray-500) }
+
+    /* form */
+    .field { margin-bottom: 16px }
+    label { display: block; font-size: 11px; font-weight: 600;
+            color: var(--gray-500); text-transform: uppercase;
+            letter-spacing: .05em; margin-bottom: 5px }
+    input[type=password] {
+      width: 100%; padding: 9px 12px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius);
+      font-size: 13px; outline: none;
+      transition: border-color .15s;
+    }
+    input[type=password]:focus { border-color: var(--teal) }
+    .btn {
+      width: 100%; padding: 11px;
+      border-radius: var(--radius);
+      font-size: 13px; font-weight: 600;
+      cursor: pointer; border: none;
+      background: var(--teal); color: var(--white);
+      transition: background .15s; margin-top: 4px;
+    }
+    .btn:hover { background: var(--teal-d) }
+    .btn:disabled { opacity: .55; cursor: not-allowed }
+
+    /* regras de senha */
+    .rules { margin: 10px 0 16px; padding: 10px 12px;
+             background: #f9fafb; border-radius: var(--radius);
+             font-size: 11px; color: var(--gray-500); line-height: 1.8 }
+    .rule { display: flex; align-items: center; gap: 6px }
+    .rule .dot { width: 6px; height: 6px; border-radius: 50%;
+                 background: var(--gray-200); flex-shrink: 0; transition: background .2s }
+    .rule.ok .dot { background: var(--green) }
+    .rule.ok { color: #374151 }
+
+    /* erro */
+    .err-box {
+      margin-top: 12px; padding: 10px 14px;
+      background: var(--red-bg); color: var(--red);
+      border-radius: var(--radius); font-size: 13px; display: none;
+    }
+
+    /* sucesso */
+    .success-icon {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: #dcfce7; display: flex; align-items: center;
+      justify-content: center; margin: 0 auto 16px; font-size: 26px;
+    }
+    .success-title { font-size: 18px; font-weight: 700; color: var(--navy);
+                     text-align: center; margin-bottom: 8px }
+    .success-sub { font-size: 13px; color: var(--gray-500); text-align: center;
+                   line-height: 1.6; margin-bottom: 20px }
+    .countdown { font-size: 12px; color: var(--gray-400); text-align: center }
+
+    /* erro de link */
+    .error-icon { font-size: 36px; text-align: center; margin-bottom: 12px }
+    .error-title { font-size: 17px; font-weight: 700; color: var(--navy);
+                   text-align: center; margin-bottom: 8px }
+    .error-sub { font-size: 13px; color: var(--gray-500); text-align: center;
+                 line-height: 1.6; margin-bottom: 20px }
+    .btn-sec {
+      width: 100%; padding: 10px;
+      border-radius: var(--radius); font-size: 13px; font-weight: 600;
+      cursor: pointer; background: var(--white); color: var(--navy);
+      border: 1.5px solid var(--gray-200); transition: background .15s;
+    }
+    .btn-sec:hover { background: #f9fafb }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <div class="logo">
+    <h1>DP+ <span>Suite</span></h1>
+    <p>Controle de fechamento mensal</p>
+  </div>
+
+  <!-- Estado 1: carregando -->
+  <div class="state active" id="s-loading">
+    <div class="spinner-wrap">
+      <div class="spinner"></div>
+      <p>Verificando link…</p>
+    </div>
+  </div>
+
+  <!-- Estado 2: formulário de senha -->
+  <div class="state" id="s-form">
+    <p style="font-size:13px;color:#374151;margin-bottom:20px;line-height:1.6">
+      Bem-vindo! Defina sua senha para acessar o sistema.
+    </p>
+    <div class="field">
+      <label>Nova senha</label>
+      <input type="password" id="cb-pass" placeholder="Mínimo 8 caracteres"
+             oninput="validarSenha()" autocomplete="new-password"/>
+    </div>
+    <div class="rules">
+      <div class="rule" id="r-len"><span class="dot"></span>Mínimo 8 caracteres</div>
+      <div class="rule" id="r-match"><span class="dot"></span>Senhas iguais</div>
+    </div>
+    <div class="field">
+      <label>Confirmar senha</label>
+      <input type="password" id="cb-conf" placeholder="Repita a senha"
+             oninput="validarSenha()" autocomplete="new-password"/>
+    </div>
+    <button class="btn" id="btn-salvar" onclick="salvarSenha()" disabled>
+      Definir senha e entrar
+    </button>
+    <div class="err-box" id="cb-err"></div>
+  </div>
+
+  <!-- Estado 3: sucesso -->
+  <div class="state" id="s-ok">
+    <div class="success-icon">✓</div>
+    <div class="success-title">Senha definida!</div>
+    <div class="success-sub">
+      Sua senha foi salva com sucesso.<br>
+      Você será redirecionado automaticamente.
+    </div>
+    <div class="countdown" id="cb-count">Redirecionando em 3s…</div>
+  </div>
+
+  <!-- Estado 4: erro de link -->
+  <div class="state" id="s-err">
+    <div class="error-icon">⚠️</div>
+    <div class="error-title">Link inválido ou expirado</div>
+    <div class="error-sub">
+      Este link já foi utilizado ou expirou.<br>
+      Solicite um novo link ao administrador ou use a opção "Esqueci minha senha".
+    </div>
+    <button class="btn-sec" onclick="window.location.href='index.html'">
+      Voltar ao login
+    </button>
+  </div>
+</div>
+
+<script>
+const SUPA_URL = 'https://lpktdwfwlrqzyrvxcuum.supabase.co';
+const SUPA_KEY = 'sb_publishable_6ohdnk6vaoiqtUC_Tq66OQ_wFV7evK0';
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+function mostrar(id) {
+  ['s-loading','s-form','s-ok','s-err'].forEach(s => {
+    document.getElementById(s).classList.toggle('active', s === id);
+  });
+}
+
+// Supabase JS v2 processa automaticamente o token do hash da URL.
+// onAuthStateChange dispara PASSWORD_RECOVERY (link de recovery/esqueci)
+// ou SIGNED_IN (link de convite/invite).
+sb.auth.onAuthStateChange((event, session) => {
+  if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+    if (session) {
+      mostrar('s-form');
+    } else {
+      mostrar('s-err');
+    }
+  }
+});
+
+// Timeout de segurança: se não houver evento em 5s, exibe erro
+setTimeout(() => {
+  const loading = document.getElementById('s-loading');
+  if (loading.classList.contains('active')) mostrar('s-err');
+}, 5000);
+
+function validarSenha() {
+  const pass = document.getElementById('cb-pass').value;
+  const conf = document.getElementById('cb-conf').value;
+  const okLen   = pass.length >= 8;
+  const okMatch = pass === conf && pass.length > 0;
+
+  document.getElementById('r-len').classList.toggle('ok', okLen);
+  document.getElementById('r-match').classList.toggle('ok', okMatch);
+  document.getElementById('btn-salvar').disabled = !(okLen && okMatch);
+}
+
+async function salvarSenha() {
+  const pass = document.getElementById('cb-pass').value;
+  const btn  = document.getElementById('btn-salvar');
+  const err  = document.getElementById('cb-err');
+
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+  err.style.display = 'none';
+
+  const { error } = await sb.auth.updateUser({ password: pass });
+
+  if (error) {
+    err.textContent = 'Erro ao definir senha. Tente novamente ou solicite um novo link.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Definir senha e entrar';
+    return;
+  }
+
+  // Encerra a sessão temporária — o usuário fará login normalmente
+  await sb.auth.signOut();
+
+  mostrar('s-ok');
+
+  // Contagem regressiva e redirecionamento
+  let seg = 3;
+  const el = document.getElementById('cb-count');
+  const timer = setInterval(() => {
+    seg--;
+    el.textContent = seg > 0 ? `Redirecionando em ${seg}s…` : 'Redirecionando…';
+    if (seg <= 0) {
+      clearInterval(timer);
+      window.location.href = 'index.html';
+    }
+  }, 1000);
+}
+</script>
+</body>
+</html>
