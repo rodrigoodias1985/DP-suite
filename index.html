@@ -430,37 +430,6 @@
     </div>
     <button class="btn btn-primary btn-login" id="btn-li" onclick="doLogin()">Entrar</button>
     <div class="login-err hidden" id="li-err"></div>
-    <div style="text-align:center;margin-top:14px">
-      <a href="#" id="li-link-rec" onclick="mostrarRecuperacao();return false"
-         style="font-size:12px;color:var(--teal);text-decoration:none">Esqueci minha senha</a>
-    </div>
-  </div>
-
-  <!-- Seção recuperação de senha (mesma .login-box, alternada via JS) -->
-  <div class="login-box hidden" id="box-recovery">
-    <div class="login-logo">
-      <h1 id="rec-logo-text">DP+ <span>Suite</span></h1>
-      <p>Recuperação de senha</p>
-    </div>
-    <p style="font-size:13px;color:var(--gray-500);margin-bottom:20px;line-height:1.6">
-      Informe seu e-mail e enviaremos um link para você definir uma nova senha.
-    </p>
-    <div class="login-field">
-      <label>E-mail</label>
-      <input type="email" id="rec-email" placeholder="seu@email.com" autocomplete="email"/>
-    </div>
-    <button class="btn btn-primary btn-login" id="btn-rec" onclick="enviarRecuperacao()">
-      Enviar link de recuperação
-    </button>
-    <div class="login-err hidden" id="rec-err"></div>
-    <div class="hidden" id="rec-ok"
-         style="margin-top:12px;padding:10px 14px;background:#dcfce7;color:#15803d;border-radius:var(--radius);font-size:13px">
-      ✓ Link enviado! Verifique sua caixa de entrada.
-    </div>
-    <div style="text-align:center;margin-top:14px">
-      <a href="#" onclick="mostrarLogin();return false"
-         style="font-size:12px;color:var(--gray-400);text-decoration:none">← Voltar ao login</a>
-    </div>
   </div>
 </div>
 
@@ -478,7 +447,6 @@
         <div class="hd-name" id="hd-name">—</div>
         <div style="text-align:right"><span class="hd-badge" id="hd-badge">—</span></div>
       </div>
-      <button class="btn-sair" onclick="openAlterarSenha()" title="Alterar senha">🔑</button>
       <button class="btn-sair" onclick="doLogout()">Sair</button>
     </div>
   </header>
@@ -625,29 +593,6 @@
     <div class="mactions">
       <button class="btn btn-secondary" onclick="closeBulkModal()">Cancelar</button>
       <button class="btn btn-primary" id="btn-bulk-save" onclick="saveBulkAssignment()">Confirmar atribuição</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal alterar senha -->
-<div class="overlay" id="modal-senha">
-  <div class="modal" style="max-width:340px">
-    <h3>Alterar senha</h3>
-    <p>Defina uma nova senha para sua conta.</p>
-    <div class="field">
-      <label>Nova senha</label>
-      <input type="password" id="ns-pass" placeholder="Mínimo 8 caracteres"
-             oninput="validarNovaSenha()" autocomplete="new-password"/>
-    </div>
-    <div class="field">
-      <label>Confirmar nova senha</label>
-      <input type="password" id="ns-conf" placeholder="Repita a senha"
-             oninput="validarNovaSenha()" autocomplete="new-password"/>
-    </div>
-    <div id="ns-err" class="login-err hidden" style="margin-bottom:12px"></div>
-    <div class="mactions">
-      <button class="btn btn-secondary" onclick="closeAlterarSenha()">Cancelar</button>
-      <button class="btn btn-primary" id="btn-ns" onclick="salvarNovaSenha()" disabled>Salvar</button>
     </div>
   </div>
 </div>
@@ -2598,7 +2543,17 @@ async function renderCarteiras(el, isAdmin) {
       ${cbCell}
       <td class="co">
         <div class="co-nm"><span class="co-code">${emp.codigo} · </span>${escHtml(nm)}</div>
-        <div class="co-meta">${emp._funcionarios} func · ${emp.tipo_empresa}${smov ? ' · sem mov.' : ''}${emp._adiantamento ? ' · adiant.' : ''}${anNm}</div>
+        <div class="co-meta">${emp._funcionarios} func · ${emp.tipo_empresa}${emp._adiantamento ? ' · adiant.' : ''}${anNm}
+          <button type="button"
+            onclick="event.stopPropagation();toggleMovimento('${emp.id}', ${emp._movimento}, ${isAdmin})"
+            title="Clique para marcar como ${smov ? 'Com movimento' : 'Sem movimento'} nesta competência"
+            style="margin-left:6px;font-size:10px;padding:1px 8px;border-radius:10px;cursor:pointer;font-weight:600;vertical-align:middle;
+              border:1px solid ${smov ? '#fca5a5' : '#86efac'};
+              background:${smov ? '#fef2f2' : '#f0fdf4'};
+              color:${smov ? '#b91c1c' : '#15803d'}">
+            ${smov ? 'Sem mov.' : 'Com mov.'}
+          </button>
+        </div>
       </td>${cells}</tr>`;
   }).join('');
 
@@ -2733,6 +2688,40 @@ function filterCartRows(q) {
     const nm = tr.querySelector('.co-nm')?.textContent.toLowerCase() || '';
     tr.style.display = nm.includes(s) ? '' : 'none';
   });
+}
+
+// ============================================================
+// TOGGLE DE MOVIMENTO POR COMPETÊNCIA (aba Carteira — admin/gestor)
+// Grava em empresa_competencia.tem_movimento, isolado por mês.
+// Nunca altera empresas.status (campo cadastral, sem relação com mês).
+// Após salvar, recalcula o NT das tarefas dessa empresa (RPC
+// recalcular_nt_empresa) para refletir a mesma regra usada na abertura
+// da competência — e revalida se a competência permanece concluída.
+// Histórico de troca fica registrado via audit_log (migration_005).
+// ============================================================
+async function toggleMovimento(empresaId, atual, isAdmin) {
+  if (!COMP) return;
+  const novo = !atual;
+
+  const { error } = await sb.from('empresa_competencia')
+    .upsert(
+      { empresa_id: empresaId, competencia_id: COMP.id, tem_movimento: novo },
+      { onConflict: 'empresa_id,competencia_id' }
+    );
+
+  if (error) { handleError(error, 'alterar movimento da empresa'); return; }
+
+  const { error: errNt } = await sb.rpc('recalcular_nt_empresa', {
+    p_empresa_id: empresaId,
+    p_competencia_id: COMP.id
+  });
+
+  if (errNt) { handleError(errNt, 'recalcular tarefas após mudança de movimento'); return; }
+
+  await checkCompConcluida();
+
+  toast(novo ? 'Marcada como "Com movimento" — tarefas atualizadas.' : 'Marcada como "Sem movimento" — tarefas atualizadas.', 'ok');
+  await (isAdmin ? renderAdminCart() : renderGestorCart());
 }
 
 // ============================================================
@@ -3248,105 +3237,8 @@ function toast(msg, type = 'inf') {
   _toastT = setTimeout(() => hide('toast'), 3500);
 }
 
-// ============================================================
-// RECUPERAÇÃO DE SENHA (tela de login)
-// ============================================================
-function mostrarRecuperacao() {
-  const logoText = document.getElementById('rec-logo-text');
-  if (logoText) {
-    const parts = APP_NAME.split(' ');
-    const last  = parts.pop();
-    logoText.innerHTML = `${parts.join(' ')} <span>${last}</span>`;
-  }
-  document.querySelector('#v-login .login-box').classList.add('hidden');
-  document.getElementById('box-recovery').classList.remove('hidden');
-  document.getElementById('rec-email').focus();
-}
-
-function mostrarLogin() {
-  document.getElementById('box-recovery').classList.add('hidden');
-  document.querySelector('#v-login .login-box').classList.remove('hidden');
-  // Limpa estado da tela de recuperação
-  document.getElementById('rec-email').value = '';
-  document.getElementById('rec-err').classList.add('hidden');
-  document.getElementById('rec-ok').classList.add('hidden');
-}
-
-async function enviarRecuperacao() {
-  const email = document.getElementById('rec-email').value.trim();
-  const btn   = document.getElementById('btn-rec');
-  const err   = document.getElementById('rec-err');
-  const ok    = document.getElementById('rec-ok');
-
-  if (!email) {
-    err.textContent = 'Informe o e-mail.';
-    err.classList.remove('hidden'); return;
-  }
-
-  btn.disabled = true; btn.textContent = 'Enviando…';
-  err.classList.add('hidden'); ok.classList.add('hidden');
-
-  const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://dpcontrole.netlify.app/auth-callback.html'
-  });
-
-  btn.disabled = false; btn.textContent = 'Enviar link de recuperação';
-
-  if (error) {
-    err.textContent = 'Erro ao enviar. Verifique o e-mail e tente novamente.';
-    err.classList.remove('hidden'); return;
-  }
-
-  ok.classList.remove('hidden');
-}
-
-// ============================================================
-// ALTERAR SENHA (usuário logado)
-// ============================================================
-function openAlterarSenha() {
-  document.getElementById('ns-pass').value = '';
-  document.getElementById('ns-conf').value = '';
-  document.getElementById('ns-err').classList.add('hidden');
-  document.getElementById('btn-ns').disabled = true;
-  document.getElementById('modal-senha').classList.add('show');
-  document.getElementById('ns-pass').focus();
-}
-
-function closeAlterarSenha() {
-  document.getElementById('modal-senha').classList.remove('show');
-}
-
-function validarNovaSenha() {
-  const pass = document.getElementById('ns-pass').value;
-  const conf = document.getElementById('ns-conf').value;
-  document.getElementById('btn-ns').disabled = !(pass.length >= 8 && pass === conf);
-}
-
-async function salvarNovaSenha() {
-  const pass = document.getElementById('ns-pass').value;
-  const btn  = document.getElementById('btn-ns');
-  const err  = document.getElementById('ns-err');
-
-  btn.disabled = true; btn.textContent = 'Salvando…';
-  err.classList.add('hidden');
-
-  const { error } = await sb.auth.updateUser({ password: pass });
-
-  btn.disabled = false; btn.textContent = 'Salvar';
-
-  if (error) {
-    err.textContent = 'Erro ao salvar a senha. Tente novamente.';
-    err.classList.remove('hidden'); return;
-  }
-
-  closeAlterarSenha();
-  toast('Senha alterada com sucesso!', 'ok');
-}
-
-// Fecha modal de senha no overlay
-document.getElementById('modal-senha').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal-senha')) closeAlterarSenha();
-});
+// Fecha modais no overlay
+eid('modal-date').addEventListener('click', e => { if (e.target === eid('modal-date')) closeModal(); });
 eid('modal-emp').addEventListener('click',  e => { if (e.target === eid('modal-emp'))  closeEmpModal(); });
 eid('modal-inativar').addEventListener('click', e => { if (e.target === eid('modal-inativar')) closeInativarModal(); });
 eid('modal-bulk').addEventListener('click', e => { if (e.target === eid('modal-bulk')) closeBulkModal(); });
