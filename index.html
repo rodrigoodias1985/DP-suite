@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DP+ Suite</title>
+  <title>DP+</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
@@ -417,7 +417,7 @@
 <div id="v-login">
   <div class="login-box">
     <div class="login-logo">
-      <h1 id="login-logo-text">DP+ <span>Suite</span></h1>
+      <h1 id="login-logo-text">DP<span>+</span></h1>
       <p>Controle de fechamento mensal</p>
     </div>
     <div class="login-field">
@@ -439,7 +439,7 @@
 <div id="v-app" class="hidden">
   <header>
     <div class="hd-l">
-      <div class="hd-logo" id="hd-logo-text">DP+ <span>Suite</span></div>
+      <div class="hd-logo" id="hd-logo-text">DP<span>+</span></div>
       <div class="hd-comp" id="hd-comp" onclick="toggleCompPicker()" title="Clique para trocar competência">—</div>
     </div>
     <div class="hd-r">
@@ -614,17 +614,24 @@ const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 // ============================================================
 // IDENTIDADE DO PRODUTO — alterar a marca em um único lugar
 // ============================================================
-const APP_NAME = 'DP+ Suite';
-// slug para nomes de arquivo de exportação (ex.: dp+_suite → dp-suite)
+const APP_NAME = 'DP+';
+// slug para nomes de arquivo de exportação (ex.: DP+ → dp)
 const APP_SLUG = APP_NAME.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
-// Renderiza o logo com a última palavra destacada (ex.: "DP+ " + <span>Suite</span>)
+// Renderiza o logo destacando o "+" em teal (ex.: "DP" + <span>+</span>).
+// Para nomes futuros sem "+" no final, cai no padrão antigo (destaca a última palavra).
 function renderBrand() {
   document.title = APP_NAME;
-  const parts = APP_NAME.split(' ');
-  const last  = parts.pop();
-  const head  = parts.join(' ');
-  const html  = `${head ? head + ' ' : ''}<span>${last}</span>`;
+  let html;
+  if (APP_NAME.endsWith('+')) {
+    const head = APP_NAME.slice(0, -1);
+    html = `${head}<span>+</span>`;
+  } else {
+    const parts = APP_NAME.split(' ');
+    const last  = parts.pop();
+    const head  = parts.join(' ');
+    html = `${head ? head + ' ' : ''}<span>${last}</span>`;
+  }
   const lg = document.getElementById('login-logo-text');
   const hg = document.getElementById('hd-logo-text');
   if (lg) lg.innerHTML = html;
@@ -1209,11 +1216,25 @@ async function renderGestor() {
     ? await fetchAllEntregas(COMP.id, allEmpIds, 'id, empresa_id, atividade_id, data_conclusao, nt, nao_ocorreu')
     : [];
 
+  // Analista histórico da competência (empresa_competencia.analista_id) — mesmo padrão
+  // usado em renderCarteiras/renderPainelExecutivo. Sem isso, troca de analista feita via
+  // importação "Responsáveis por Competência" (que só grava em empresa_competencia, não
+  // em empresas.analista_id) ficava fora do sincronismo nesta tela.
+  const ecAnalIdx = {};
+  if (allEmpIds.length) {
+    const { data: ec } = await sb.from('empresa_competencia')
+      .select('empresa_id, analista_id')
+      .eq('competencia_id', COMP.id)
+      .in('empresa_id', allEmpIds);
+    (ec || []).forEach(x => { ecAnalIdx[x.empresa_id] = x.analista_id; });
+  }
+
   // Reconstrói estrutura compatível com o restante da função
   const all = rawEnts.map(e => ({
     ...e,
     empresas: empIdx[e.empresa_id] || null,
-    atividades: atvIdx[e.atividade_id] || null
+    atividades: atvIdx[e.atividade_id] || null,
+    _analista_id: ecAnalIdx[e.empresa_id] ?? empIdx[e.empresa_id]?.analista_id // analista histórico da competência
   }));
 
   const gFirstDay = `${COMP.ano}-${String(COMP.mes).padStart(2,'0')}-01`;
@@ -1270,7 +1291,7 @@ async function renderGestor() {
   }
 
   const anRows = ANALISTAS.map(a => {
-    const ae   = aplic.filter(e => e.empresas?.analista_id === a.id);
+    const ae   = aplic.filter(e => e._analista_id === a.id);
     const done = ae.filter(e => e.data_conclusao || e.nao_ocorreu).length;
     const tot  = ae.length;
     const pct  = tot > 0 ? Math.round(done / tot * 100) : 0;
@@ -1333,13 +1354,13 @@ function showCardDetail(key) {
   const byEmp = {};
   pendItems.forEach(e => {
     const k = e.empresa_id;
-    if (!byEmp[k]) byEmp[k] = { emp: e.empresas, atvs: [] };
+    if (!byEmp[k]) byEmp[k] = { emp: e.empresas, analId: e._analista_id, atvs: [] };
     byEmp[k].atvs.push(e.atividades?.label_curto || e.atividades?.nome || '?');
   });
 
   const rows = Object.values(byEmp).map(x => {
     const nm = x.emp ? `${x.emp.codigo} · ${x.emp.razao_social}` : '?';
-    const an = ANALISTAS.find(a => a.id === x.emp?.analista_id);
+    const an = ANALISTAS.find(a => a.id === x.analId);
     return `<div class="cd-row">
       <div>
         <div class="cd-name">${escHtml(nm)}</div>
