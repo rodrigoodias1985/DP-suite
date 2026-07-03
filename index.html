@@ -107,6 +107,34 @@
       background:var(--red-bg); color:var(--red);
       border-radius:var(--radius); font-size:13px;
     }
+    .li-forgot-wrap { text-align:center; margin-top:14px }
+    .li-forgot {
+      background:none; border:none; cursor:pointer;
+      font-size:12px; color:var(--teal); padding:0; text-decoration:underline;
+    }
+    .li-forgot:hover { color:var(--teal-d) }
+    .box-recovery { margin-top:4px }
+    .box-recovery > p { font-size:12px; color:var(--gray-500); margin-bottom:14px; line-height:1.5 }
+    .login-ok {
+      margin-top:12px; padding:10px 14px;
+      background:var(--green-bg); color:var(--green);
+      border-radius:var(--radius); font-size:13px;
+    }
+    .btn-senha {
+      background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
+      color:rgba(255,255,255,.85); border-radius:var(--radius);
+      padding:5px 10px; font-size:14px; cursor:pointer; margin-right:6px;
+      transition:background .15s;
+    }
+    .btn-senha:hover { background:rgba(255,255,255,.2) }
+    .rules { margin:10px 0 16px; padding:10px 12px;
+             background:#f9fafb; border-radius:var(--radius);
+             font-size:11px; color:var(--gray-500); line-height:1.8 }
+    .rule { display:flex; align-items:center; gap:6px }
+    .rule .dot { width:6px; height:6px; border-radius:50%;
+                 background:var(--gray-200); flex-shrink:0; transition:background .2s }
+    .rule.ok .dot { background:var(--green) }
+    .rule.ok { color:#374151 }
 
     /* === APP SHELL === */
     #v-app { min-height:100vh }
@@ -430,6 +458,24 @@
     </div>
     <button class="btn btn-primary btn-login" id="btn-li" onclick="doLogin()">Entrar</button>
     <div class="login-err hidden" id="li-err"></div>
+    <div class="li-forgot-wrap" id="li-forgot-wrap">
+      <button class="li-forgot" onclick="mostrarRecuperacao()">Esqueci minha senha</button>
+    </div>
+
+    <!-- Seção de recuperação de senha (oculta por padrão) -->
+    <div class="box-recovery hidden" id="box-recovery">
+      <p>Digite seu e-mail para receber um link de redefinição de senha.</p>
+      <div class="login-field">
+        <label>E-mail</label>
+        <input type="email" id="li-rec-email" placeholder="seu@email.com" autocomplete="email"/>
+      </div>
+      <button class="btn btn-primary btn-login" id="btn-rec" onclick="enviarRecuperacao()">Enviar link</button>
+      <div class="login-err hidden" id="rec-err"></div>
+      <div class="login-ok hidden" id="rec-ok">✓ Link enviado! Verifique seu e-mail.</div>
+      <div class="li-forgot-wrap" style="margin-top:14px">
+        <button class="li-forgot" onclick="mostrarLogin()">← Voltar ao login</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -447,6 +493,7 @@
         <div class="hd-name" id="hd-name">—</div>
         <div style="text-align:right"><span class="hd-badge" id="hd-badge">—</span></div>
       </div>
+      <button class="btn-senha" onclick="openAlterarSenha()" title="Alterar senha">🔑</button>
       <button class="btn-sair" onclick="doLogout()">Sair</button>
     </div>
   </header>
@@ -593,6 +640,33 @@
     <div class="mactions">
       <button class="btn btn-secondary" onclick="closeBulkModal()">Cancelar</button>
       <button class="btn btn-primary" id="btn-bulk-save" onclick="saveBulkAssignment()">Confirmar atribuição</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal alterar senha -->
+<div class="overlay" id="modal-senha">
+  <div class="modal" style="max-width:360px">
+    <h3>Alterar Senha</h3>
+    <p>Escolha uma nova senha para sua conta.</p>
+    <div class="field">
+      <label>Nova senha</label>
+      <input type="password" id="ms-pass" placeholder="Mínimo 8 caracteres"
+             oninput="validarNovaSenha()" autocomplete="new-password"/>
+    </div>
+    <div class="rules">
+      <div class="rule" id="ms-r-len"><span class="dot"></span>Mínimo 8 caracteres</div>
+      <div class="rule" id="ms-r-match"><span class="dot"></span>Senhas iguais</div>
+    </div>
+    <div class="field">
+      <label>Confirmar nova senha</label>
+      <input type="password" id="ms-conf" placeholder="Repita a senha"
+             oninput="validarNovaSenha()" autocomplete="new-password"/>
+    </div>
+    <div class="login-err hidden" id="ms-err"></div>
+    <div class="mactions" style="margin-top:8px">
+      <button class="btn btn-secondary" onclick="closeAlterarSenha()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-ms-salvar" onclick="salvarNovaSenha()" disabled>Salvar senha</button>
     </div>
   </div>
 </div>
@@ -843,6 +917,115 @@ function loginErr(msg) {
   const el = eid('li-err');
   el.textContent = msg;
   el.classList.remove('hidden');
+}
+
+// ============================================================
+// SENHA — Esqueci / Recuperação / Alterar
+// ============================================================
+function mostrarRecuperacao() {
+  // Oculta o formulário de login e mostra a seção de recuperação
+  eid('li-email').closest('.login-field').classList.add('hidden');
+  eid('li-pass').closest('.login-field').classList.add('hidden');
+  eid('btn-li').classList.add('hidden');
+  eid('li-err').classList.add('hidden');
+  eid('li-forgot-wrap') && eid('li-forgot-wrap').classList.add('hidden');
+  // Pré-preenche email se já digitado
+  const email = eid('li-email').value.trim();
+  if (email) eid('li-rec-email').value = email;
+  eid('box-recovery').classList.remove('hidden');
+}
+
+function mostrarLogin() {
+  // Restaura o formulário de login
+  eid('li-email').closest('.login-field').classList.remove('hidden');
+  eid('li-pass').closest('.login-field').classList.remove('hidden');
+  eid('btn-li').classList.remove('hidden');
+  eid('li-forgot-wrap').classList.remove('hidden');
+  eid('box-recovery').classList.add('hidden');
+  eid('rec-err').classList.add('hidden');
+  eid('rec-ok').classList.add('hidden');
+  eid('li-rec-email').value = '';
+  eid('btn-rec').disabled = false;
+  eid('btn-rec').textContent = 'Enviar link';
+}
+
+async function enviarRecuperacao() {
+  const email = eid('li-rec-email').value.trim();
+  const btn   = eid('btn-rec');
+  const errEl = eid('rec-err');
+  const okEl  = eid('rec-ok');
+
+  if (!email) {
+    errEl.textContent = 'Informe o e-mail.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+  errEl.classList.add('hidden');
+  okEl.classList.add('hidden');
+
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://dpcontrole.netlify.app/auth-callback.html'
+  });
+
+  if (error) {
+    errEl.textContent = 'Não foi possível enviar o link. Tente novamente.';
+    errEl.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Enviar link';
+  } else {
+    okEl.classList.remove('hidden');
+    btn.textContent = 'Link enviado';
+  }
+}
+
+function openAlterarSenha() {
+  eid('ms-pass').value = '';
+  eid('ms-conf').value = '';
+  eid('ms-err').classList.add('hidden');
+  eid('btn-ms-salvar').disabled = true;
+  eid('ms-r-len').classList.remove('ok');
+  eid('ms-r-match').classList.remove('ok');
+  eid('modal-senha').classList.add('show');
+}
+
+function closeAlterarSenha() {
+  eid('modal-senha').classList.remove('show');
+}
+
+function validarNovaSenha() {
+  const pass  = eid('ms-pass').value;
+  const conf  = eid('ms-conf').value;
+  const okLen   = pass.length >= 8;
+  const okMatch = pass === conf && pass.length > 0;
+  eid('ms-r-len').classList.toggle('ok', okLen);
+  eid('ms-r-match').classList.toggle('ok', okMatch);
+  eid('btn-ms-salvar').disabled = !(okLen && okMatch);
+}
+
+async function salvarNovaSenha() {
+  const pass = eid('ms-pass').value;
+  const btn  = eid('btn-ms-salvar');
+  const errEl = eid('ms-err');
+
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+  errEl.classList.add('hidden');
+
+  const { error } = await sb.auth.updateUser({ password: pass });
+
+  if (error) {
+    errEl.textContent = 'Erro ao salvar a senha. Tente novamente.';
+    errEl.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Salvar senha';
+    return;
+  }
+
+  closeAlterarSenha();
+  toast('Senha alterada com sucesso!', 'ok');
 }
 
 // ============================================================
@@ -3263,6 +3446,7 @@ eid('modal-date').addEventListener('click', e => { if (e.target === eid('modal-d
 eid('modal-emp').addEventListener('click',  e => { if (e.target === eid('modal-emp'))  closeEmpModal(); });
 eid('modal-inativar').addEventListener('click', e => { if (e.target === eid('modal-inativar')) closeInativarModal(); });
 eid('modal-bulk').addEventListener('click', e => { if (e.target === eid('modal-bulk')) closeBulkModal(); });
+eid('modal-senha').addEventListener('click', e => { if (e.target === eid('modal-senha')) closeAlterarSenha(); });
 
 // Fecha comp-picker ao clicar fora
 document.addEventListener('click', e => {
