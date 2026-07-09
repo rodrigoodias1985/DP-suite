@@ -3340,45 +3340,76 @@ async function renderGrowthChart() {
 function buildGrowthSVG(serie) {
   if (!serie.length) return '<p style="font-size:13px;color:var(--gray-400)">Sem dados no período.</p>';
 
-  const W = 760, H = 240, padL = 44, padR = 44, padT = 16, padB = 34;
+  // padT maior para acomodar data labels acima dos pontos de empresas
+  const W = 760, H = 260, padL = 52, padR = 52, padT = 28, padB = 34;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const n = serie.length;
 
   const maxEmp = Math.max(1, ...serie.map(s => s.empresas));
+  const minEmp = Math.min(...serie.map(s => s.empresas));
   const maxVid = Math.max(1, ...serie.map(s => s.vidas));
+  const minVid = Math.min(...serie.map(s => s.vidas));
 
-  const xAt = i => n === 1 ? padL + plotW/2 : padL + (plotW * i / (n - 1));
-  const yEmp = v => padT + plotH - (plotH * v / maxEmp);
-  const yVid = v => padT + plotH - (plotH * v / maxVid);
+  // Escala dinâmica: padding proporcional ao range dos dados observados.
+  // Com poucos meses ou variação pequena, os pontos ficariam empilhados
+  // no topo do gráfico com escala 0–max. O padding distribui os pontos
+  // ao longo do espaço vertical disponível.
+  const rangeEmp = Math.max(1, maxEmp - minEmp);
+  const rangeVid = Math.max(1, maxVid - minVid);
+  const padYEmp  = Math.ceil(rangeEmp * 0.6);
+  const padYVid  = Math.ceil(rangeVid * 0.6);
+
+  const floorEmp = Math.max(0, minEmp - padYEmp);
+  const ceilEmp  = maxEmp + Math.ceil(padYEmp * 0.4);
+  const floorVid = Math.max(0, minVid - padYVid);
+  const ceilVid  = maxVid + Math.ceil(padYVid * 0.4);
+
+  const xAt  = i => n === 1 ? padL + plotW / 2 : padL + (plotW * i / (n - 1));
+  const yEmp = v => padT + plotH - (plotH * (v - floorEmp) / (ceilEmp - floorEmp));
+  const yVid = v => padT + plotH - (plotH * (v - floorVid) / (ceilVid - floorVid));
 
   const lineEmp = serie.map((s, i) => `${xAt(i).toFixed(1)},${yEmp(s.empresas).toFixed(1)}`).join(' ');
   const lineVid = serie.map((s, i) => `${xAt(i).toFixed(1)},${yVid(s.vidas).toFixed(1)}`).join(' ');
 
   const dotsEmp = serie.map((s, i) =>
-    `<circle cx="${xAt(i).toFixed(1)}" cy="${yEmp(s.empresas).toFixed(1)}" r="3.5" fill="#0d7377"><title>${s.label}: ${s.empresas} empresas</title></circle>`
+    `<circle cx="${xAt(i).toFixed(1)}" cy="${yEmp(s.empresas).toFixed(1)}" r="4" fill="#0d7377"><title>${s.label}: ${s.empresas} empresas</title></circle>`
   ).join('');
   const dotsVid = serie.map((s, i) =>
-    `<circle cx="${xAt(i).toFixed(1)}" cy="${yVid(s.vidas).toFixed(1)}" r="3.5" fill="#2563eb"><title>${s.label}: ${s.vidas} vidas</title></circle>`
+    `<circle cx="${xAt(i).toFixed(1)}" cy="${yVid(s.vidas).toFixed(1)}" r="4" fill="#2563eb"><title>${s.label}: ${s.vidas} vidas</title></circle>`
   ).join('');
+
+  // Valores diretamente nos pontos: empresas acima, vidas abaixo
+  const dataLabelsEmp = serie.map((s, i) => {
+    const x = xAt(i).toFixed(1);
+    const y = (yEmp(s.empresas) - 9).toFixed(1);
+    return `<text x="${x}" y="${y}" font-size="10" font-weight="600" fill="#0d7377" text-anchor="middle">${s.empresas}</text>`;
+  }).join('');
+  const dataLabelsVid = serie.map((s, i) => {
+    const x = xAt(i).toFixed(1);
+    const y = (yVid(s.vidas) + 17).toFixed(1);
+    return `<text x="${x}" y="${y}" font-size="10" font-weight="600" fill="#2563eb" text-anchor="middle">${s.vidas}</text>`;
+  }).join('');
 
   const xLabels = serie.map((s, i) =>
     `<text x="${xAt(i).toFixed(1)}" y="${H - 12}" font-size="10" fill="#6b7280" text-anchor="middle">${s.label}</text>`
   ).join('');
 
-  // gridlines horizontais (4)
-  const grid = [0,0.25,0.5,0.75,1].map(t => {
+  // gridlines horizontais
+  const grid = [0, 0.25, 0.5, 0.75, 1].map(t => {
     const y = padT + plotH * t;
-    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#e5e7eb" stroke-width="1"/>`;
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="#e5e7eb" stroke-width="1"/>`;
   }).join('');
 
-  // labels de eixo (empresas à esquerda, vidas à direita)
-  const yLabelsEmp = [0,0.5,1].map(t => {
-    const y = padT + plotH - plotH * t;
-    return `<text x="${padL-6}" y="${(y+3).toFixed(1)}" font-size="9" fill="#0d7377" text-anchor="end">${Math.round(maxEmp*t)}</text>`;
+  // labels de eixo refletindo a escala real (não necessariamente 0–max)
+  const yLabelsEmp = [0, 0.5, 1].map(t => {
+    const y   = padT + plotH - plotH * t;
+    const val = Math.round(floorEmp + (ceilEmp - floorEmp) * t);
+    return `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" font-size="9" fill="#0d7377" text-anchor="end">${val}</text>`;
   }).join('');
-  const yLabelsVid = [0,0.5,1].map(t => {
-    const y = padT + plotH - plotH * t;
-    return `<text x="${W-padR+6}" y="${(y+3).toFixed(1)}" font-size="9" fill="#2563eb" text-anchor="start">${Math.round(maxVid*t)}</text>`;
+  const yLabelsVid = [0, 0.5, 1].map(t => {
+    const y   = padT + plotH - plotH * t;
+    const val = Math.round(floorVid + (ceilVid - floorVid) * t);
+    return `<text x="${W - padR + 6}" y="${(y + 3).toFixed(1)}" font-size="9" fill="#2563eb" text-anchor="start">${val}</text>`;
   }).join('');
 
   return `
@@ -3393,13 +3424,15 @@ function buildGrowthSVG(serie) {
         <polyline points="${lineEmp}" fill="none" stroke="#0d7377" stroke-width="2" stroke-linejoin="round"/>
         <polyline points="${lineVid}" fill="none" stroke="#2563eb" stroke-width="2" stroke-linejoin="round" stroke-dasharray="0"/>
         ${dotsEmp}${dotsVid}
+        ${dataLabelsEmp}${dataLabelsVid}
         ${xLabels}
       </svg>
     </div>
     <div style="display:flex;gap:24px;font-size:12px;color:var(--gray-500);margin-top:8px">
       <span>Início: <strong style="color:var(--navy)">${serie[0].empresas}</strong> emp · <strong style="color:var(--blue)">${serie[0].vidas}</strong> vidas</span>
       <span>Atual: <strong style="color:var(--navy)">${serie[serie.length-1].empresas}</strong> emp · <strong style="color:var(--blue)">${serie[serie.length-1].vidas}</strong> vidas</span>
-      ${serie.length > 1 ? `<span>Δ Vidas: <strong style="color:${serie[serie.length-1].vidas - serie[0].vidas >= 0 ? 'var(--green)':'var(--red)'}">${serie[serie.length-1].vidas - serie[0].vidas >= 0 ? '+' : ''}${serie[serie.length-1].vidas - serie[0].vidas}</strong></span>` : ''}
+      ${serie.length > 1 ? `<span>Δ Vidas: <strong style="color:${serie[serie.length-1].vidas - serie[0].vidas >= 0 ? 'var(--green)':'var(--red)'}">` +
+        `${serie[serie.length-1].vidas - serie[0].vidas >= 0 ? '+' : ''}${serie[serie.length-1].vidas - serie[0].vidas}</strong></span>` : ''}
     </div>`;
 }
 
