@@ -1323,45 +1323,15 @@ async function saveNaoOcorreu() {
 
 async function checkCompConcluida() {
   if (!COMP) return;
-
-  // Usa COUNT para evitar limite de linhas do Supabase (ex.: 390 emp × 12 atv = 4680 rows)
-  const { count: total } = await sb.from('entregas')
-    .select('id', { count: 'exact', head: true })
-    .eq('competencia_id', COMP.id)
-    .eq('nt', false);
-
-  if (!total) return;
-
-  const { count: comData } = await sb.from('entregas')
-    .select('id', { count: 'exact', head: true })
-    .eq('competencia_id', COMP.id)
-    .eq('nt', false)
-    .not('data_conclusao', 'is', null);
-
-  const { count: comNO } = await sb.from('entregas')
-    .select('id', { count: 'exact', head: true })
-    .eq('competencia_id', COMP.id)
-    .eq('nt', false)
-    .eq('nao_ocorreu', true);
-
-  const allDone = ((comData || 0) + (comNO || 0)) >= total;
-
-  if (allDone && COMP.status !== 'concluida') {
-    const { error } = await sb.from('competencias')
-      .update({ status: 'concluida' }).eq('id', COMP.id);
-    if (!error) {
-      toast('🎉 Competência concluída!', 'ok');
-      await loadComp();
-    }
-  } else if (!allDone && COMP.status === 'concluida') {
-    // Correção reabriu pendências: volta para "aberta" para manter o status coerente
-    const { error } = await sb.from('competencias')
-      .update({ status: 'aberta' }).eq('id', COMP.id);
-    if (!error) {
-      toast('Competência reaberta — há atividades pendentes novamente.', 'inf');
-      await loadComp();
-    }
-  }
+  // Usa a RPC SECURITY DEFINER para contornar a RLS de UPDATE em competencias.
+  // Analistas e gestores não têm permissão de UPDATE na tabela, então o update
+  // direto falhava silenciosamente para qualquer usuário não-admin.
+  const prevStatus = COMP.status;
+  const { data, error } = await sb.rpc('check_comp_concluida', { p_comp_id: COMP.id });
+  if (error || !data || data.status === prevStatus) return;
+  await loadComp();
+  if (data.status === 'concluida') toast('🎉 Competência concluída!', 'ok');
+  else if (data.status === 'aberta') toast('Competência reaberta — há atividades pendentes novamente.', 'inf');
 }
 
 // ============================================================
@@ -1618,13 +1588,26 @@ async function loadCompList() {
     const tagClass = c.status === 'aberta' ? 'tag-open' : c.status === 'concluida' ? 'tag-concluida' : 'tag-closed';
     const tagLabel = c.status === 'aberta' ? 'Aberta' : c.status === 'concluida' ? 'Concluída ✓' : c.status;
     const canDel   = c.status === 'aberta';
+    const mesLabel = `${MES_NOMES[c.mes-1]}/${c.ano}`;
     return `
     <div class="comp-item">
       <span class="comp-mes">${MES_NOMES[c.mes-1]} / ${c.ano}</span>
       <span class="tag ${tagClass}">${tagLabel}</span>
-      ${canDel ? `<button class="btn-xs btn-del" onclick="deletarComp('${c.id}','${MES_NOMES[c.mes-1]}/${c.ano}')" style="margin-left:auto">Excluir</button>` : ''}
+      ${canDel ? `<button class="btn-xs btn-del" onclick="deletarComp('${c.id}','${mesLabel}')" style="margin-left:auto">Excluir</button>` : ''}
+      <button class="btn-xs" onclick="verificarCompStatus('${c.id}','${mesLabel}')"
+        title="Recalcular status da competência"
+        style="${!canDel ? 'margin-left:auto;' : ''}color:var(--gray-500);border-color:var(--gray-200);background:var(--gray-100)">🔄</button>
     </div>`;
   }).join('');
+}
+
+async function verificarCompStatus(id, label) {
+  const { data, error } = await sb.rpc('check_comp_concluida', { p_comp_id: id });
+  if (error) { toast('Erro ao verificar: ' + error.message, 'err'); return; }
+  const s = data?.status === 'concluida' ? 'Concluída ✓' : data?.status === 'aberta' ? 'Aberta' : data?.status;
+  toast(`${label} — status: ${s}`, data?.status === 'concluida' ? 'ok' : 'inf');
+  await loadComp();
+  await loadCompList();
 }
 
 async function abrirComp() {
@@ -1808,7 +1791,9 @@ async function confirmarInativacao() {
 
 async function reativarEmp(id, nome) {
   if (!confirm(`Reativar "${nome}"?`)) return;
-  const { error } = await sb.from('empresas').update({ status: 'ativo' }).eq('id', id);
+  // data_fim: null garante que a data de baixa é limpa — sem isso a empresa
+  // não aparece na Carteira (filtro fimOk exclui data_fim < primeiro dia da comp)
+  const { error } = await sb.from('empresas').update({ status: 'ativo', data_fim: null }).eq('id', id);
   if (error) { toast('Erro ao reativar: ' + error.message, 'err'); return; }
   toast('Empresa reativada.', 'ok');
   await renderAdminEmp();
