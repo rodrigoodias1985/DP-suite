@@ -826,10 +826,13 @@
         <div class="dashboard-controls-bar">
           <div class="controls-left">
             <span class="logo-title-mini">DP CONTROLE</span>
-            <div class="header-month-badge-mini">
-              <span class="dot"></span>
-              <span id="dashboardMonthLabel">-</span>
-            </div>
+            <select id="compSelector" class="filter-select-custom"
+              onchange="onCompChange()"
+              style="font-size:0.72rem;font-family:var(--font-mono);color:var(--teal);border-color:var(--border-strong);padding:0.25rem 0.65rem">
+              <!-- populado por loadFromSupabase -->
+            </select>
+            <!-- mantido oculto para uso interno do exportExcel -->
+            <span id="dashboardMonthLabel" style="display:none">-</span>
           </div>
           <div class="controls-right">
             <button class="btn-theme-mini" onclick="toggleTheme()" id="themeBtnMini">CLARO</button>
@@ -1097,23 +1100,38 @@
     await loadFromSupabase();
   })();
 
-  async function loadFromSupabase() {
+  async function loadFromSupabase(compId = null) {
     showLoading(true);
     try {
-      // 1. Competência ativa (aberta) — fallback para a mais recente concluída
-      const { data: abertas, error: compErr } = await sb
-        .from('competencias').select('*').eq('status', 'aberta')
-        .order('ano', { ascending: false }).order('mes', { ascending: false }).limit(1);
-      if (compErr) throw compErr;
+      // Guard de sessão
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = '/'; return; }
 
-      let comp = abertas?.[0];
+      // 1. Todas as competências disponíveis — popula o seletor
+      const { data: allComps, error: allErr } = await sb
+        .from('competencias').select('id, mes, ano, status')
+        .in('status', ['aberta', 'concluida'])
+        .order('ano', { ascending: false }).order('mes', { ascending: false });
+      if (allErr) throw allErr;
+
+      const sel = document.getElementById('compSelector');
+      sel.innerHTML = (allComps || []).map(c =>
+        `<option value="${c.id}">${MES_PT[c.mes-1]}/${c.ano}${c.status === 'aberta' ? ' ●' : ''}</option>`
+      ).join('');
+
+      // Determina qual competência carregar:
+      // → se compId fornecido (troca manual): usa ele
+      // → senão: mais recente com status 'aberta', fallback para mais recente 'concluida'
+      let comp;
+      if (compId) {
+        comp = (allComps || []).find(c => c.id === compId);
+      }
       if (!comp) {
-        const { data: concluidas } = await sb
-          .from('competencias').select('*').eq('status', 'concluida')
-          .order('ano', { ascending: false }).order('mes', { ascending: false }).limit(1);
-        comp = concluidas?.[0];
+        comp = (allComps || []).find(c => c.status === 'aberta') || allComps?.[0];
       }
       if (!comp) { showNoComp(); showLoading(false); return; }
+
+      sel.value = comp.id;
 
       // 2. Analistas
       const { data: analistas } = await sb.from('usuarios').select('id, nome');
@@ -1170,7 +1188,7 @@
           emp.razao_social || '',
           analMap[ec.analista_id] || '',
           ec.funcionarios || 0,
-          ec.tem_movimento   ? 'Com movimento' : 'Sem movimento',
+          ec.tem_movimento    ? 'Com movimento' : 'Sem movimento',
           ec.tem_adiantamento ? 'Sim'           : 'Não'
         ];
         (atividades || []).forEach(atv => {
@@ -1204,6 +1222,11 @@
     }
   }
 
+  function onCompChange() {
+    const sel = document.getElementById('compSelector');
+    if (sel.value) loadFromSupabase(sel.value);
+  }
+
   function showNoComp() {
     document.getElementById('landingTitle').textContent = 'NENHUMA COMPETÊNCIA ATIVA';
     document.getElementById('landingMsg').textContent   = 'Não há competências abertas ou concluídas no sistema no momento.';
@@ -1211,13 +1234,14 @@
   }
 
   async function refreshDashboard() {
+    const sel = document.getElementById('compSelector');
     destroyCharts();
     DATA_ROWS = [];
-    document.getElementById('dashboard').style.display        = 'none';
+    document.getElementById('dashboard').style.display         = 'none';
     document.getElementById('pendenciasSection').style.display = 'none';
-    document.getElementById('selectAnalistaFilter').value     = '';
-    document.getElementById('selectObrigacaoFilter').value    = '';
-    await loadFromSupabase();
+    document.getElementById('selectAnalistaFilter').value      = '';
+    document.getElementById('selectObrigacaoFilter').value     = '';
+    await loadFromSupabase(sel.value || null);
   }
 
   /* ============================================================
