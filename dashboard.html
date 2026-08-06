@@ -1,0 +1,1975 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DP Controle — Dashboard de Fechamento</title>
+  <meta name="description" content="Dashboard profissional para análise de entregas do Departamento Pessoal — visão gerencial de fechamento mensal." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;700&family=DM+Sans:wght@400;500;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <!-- Chart.js Datalabels Plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
+  <!-- SheetJS (XLSX — exportação de pendências) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    /* ======================================================
+       DESIGN TOKENS (Orientações gráficas e estética)
+    ====================================================== */
+    :root {
+      --navy:      #0C1E3C;
+      --teal:      #00C2A8;
+      --white:     #FFFFFF;
+      --slate:     #8FA3BF;
+      --surface:   #112240;
+      --danger:    #FF4D4D;
+      --danger-bg: rgba(255, 77, 77, 0.1);
+
+      --bg-primary:   var(--navy);
+      --bg-secondary: #08162e;
+      --bg-card:      var(--surface);
+      
+      --text-primary:   var(--white);
+      --text-secondary: var(--slate);
+      --border:         rgba(0, 194, 168, 0.15);
+      --border-strong:  rgba(0, 194, 168, 0.4);
+
+      --font-title: 'Syne', sans-serif;
+      --font-body:  'DM Sans', sans-serif;
+      --font-mono:  'DM Mono', monospace;
+
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --radius:     4px; /* Cantos secos/sutis */
+    }
+
+    [data-theme="light"] {
+      --bg-primary:   #F4F6F9;
+      --bg-secondary: #E2E8F0;
+      --bg-card:      #FFFFFF;
+      --text-primary: #0C1E3C;
+      --text-secondary: #4A5D78;
+      --border:       rgba(0, 194, 168, 0.3);
+      --border-strong: rgba(0, 194, 168, 0.6);
+      --danger:       #D63030;
+      --danger-bg:    rgba(214, 48, 48, 0.1);
+    }
+
+    /* ======================================================
+       RESET & BASE
+    ====================================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.5;
+      transition: background-color var(--transition), color var(--transition);
+    }
+
+    /* ======================================================
+       SCROLLBAR
+    ====================================================== */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+    ::-webkit-scrollbar-thumb { background: var(--teal); border-radius: 99px; }
+
+    /* ======================================================
+       ANIMATION (Entrada suave de 12px)
+    ====================================================== */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .animated-entry {
+      animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* ======================================================
+       HEADER
+    ====================================================== */
+    .header {
+      background-color: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      height: 70px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      transition: background-color var(--transition), border-color var(--transition);
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+
+    .logo-svg {
+      flex-shrink: 0;
+    }
+
+    .logo-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+      text-align: left;
+    }
+
+    .logo-title {
+      font-family: var(--font-title);
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-sub {
+      font-family: var(--font-body);
+      font-size: 0.68rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .header-spacer { flex: 1; }
+
+    .header-month-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border: 1px solid var(--border-strong);
+      padding: 0.35rem 0.85rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--teal);
+      border-radius: var(--radius);
+      margin-right: 1rem;
+    }
+
+    .header-month-badge .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--teal);
+    }
+
+    /* Buttons with sharp edges */
+    .btn {
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--border-strong);
+      background: transparent;
+      color: var(--text-primary);
+      cursor: pointer;
+      border-radius: var(--radius);
+      transition: all var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn:hover {
+      border-color: var(--teal);
+      background: rgba(0, 194, 168, 0.08);
+    }
+
+    .btn-primary {
+      background-color: var(--teal);
+      color: var(--navy);
+      border-color: var(--teal);
+    }
+
+    .btn-primary:hover {
+      background-color: transparent;
+      color: var(--text-primary);
+    }
+
+    .btn-theme {
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      padding: 0.5rem 0.85rem;
+      cursor: pointer;
+      border-radius: var(--radius);
+      margin-right: 0.75rem;
+      transition: all var(--transition);
+    }
+
+    .btn-theme:hover {
+      color: var(--text-primary);
+      border-color: var(--border-strong);
+    }
+
+    /* ======================================================
+       DASHBOARD CONTROLS BAR (After Import)
+    ====================================================== */
+    .dashboard-controls-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.85rem 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .logo-title-mini {
+      font-family: var(--font-title);
+      font-weight: 800;
+      font-size: 0.95rem;
+      letter-spacing: -0.01em;
+    }
+
+    .controls-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .controls-right {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .header-month-badge-mini {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      border: 1px solid var(--border-strong);
+      padding: 0.25rem 0.65rem;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--teal);
+      border-radius: var(--radius);
+    }
+
+    .header-month-badge-mini .dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background-color: var(--teal);
+    }
+
+    .btn-theme-mini {
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 0.68rem;
+      letter-spacing: 0.05em;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      padding: 0.4rem 0.75rem;
+      cursor: pointer;
+      border-radius: var(--radius);
+      transition: all var(--transition);
+    }
+
+    .btn-theme-mini:hover {
+      color: var(--text-primary);
+      border-color: var(--border-strong);
+    }
+
+    .btn-danger {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background-color: var(--danger-bg);
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    /* ======================================================
+       MAIN CONTENT
+    ====================================================== */
+    main {
+      flex: 1;
+      padding: 2.5rem;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* ======================================================
+       LANDING (Centered Layout)
+    ====================================================== */
+    #landing {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 70vh;
+      text-align: center;
+    }
+
+    .landing-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.04em;
+    }
+
+    .landing-sub {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 2.5rem;
+      max-width: 600px;
+    }
+
+    /* ======================================================
+       DASHBOARD CONTAINER
+    ====================================================== */
+    #dashboard { display: none; }
+
+    .section-title-custom {
+      font-family: var(--font-title);
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+
+    .section-subtitle-custom {
+      font-family: var(--font-body);
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .section-divider {
+      border-top: 1px solid rgba(0, 194, 168, 0.2);
+      margin: 2.5rem 0 1.5rem 0;
+    }
+
+    /* ======================================================
+       KPI CARD GRID (Adaptação para 7 quadros)
+    ====================================================== */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+
+    .kpi-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--teal);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 0.25rem;
+      transition: all var(--transition);
+    }
+
+    .kpi-card:hover {
+      border-color: var(--border-strong);
+    }
+
+    .kpi-card.kpi-interactive {
+      border-left-color: var(--danger);
+    }
+
+    .kpi-card.kpi-interactive:hover {
+      border-color: var(--danger);
+      box-shadow: 0 0 12px rgba(255, 77, 77, 0.1);
+    }
+
+    .kpi-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      letter-spacing: 0.05em;
+    }
+
+    .kpi-value {
+      font-family: var(--font-mono);
+      font-size: 2.25rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--text-primary);
+    }
+
+    .text-teal { color: var(--teal) !important; }
+    .text-danger { color: var(--danger) !important; }
+
+    .kpi-action-hint {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--danger);
+      letter-spacing: 0.05em;
+      margin-top: 0.25rem;
+    }
+
+    /* ======================================================
+       CHARTS
+    ====================================================== */
+    .charts-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .charts-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .chart-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      transition: border-color var(--transition);
+    }
+
+    .chart-card:hover {
+      border-color: var(--border-strong);
+    }
+
+    .chart-card.full-width { grid-column: 1 / -1; }
+
+    .chart-title-wrap {
+      margin-bottom: 1.5rem;
+      text-align: left;
+    }
+
+    .chart-header-title {
+      font-family: var(--font-title);
+      font-size: 0.9rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .chart-header-sub {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+    }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+    }
+
+    /* ======================================================
+       ANALYST PERFORMANCE CARDS
+    ====================================================== */
+    .analyst-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+
+    .analyst-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      transition: all var(--transition);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      text-align: left;
+    }
+
+    .analyst-card:hover {
+      border-color: var(--teal);
+      box-shadow: 0 0 10px rgba(0, 194, 168, 0.08);
+    }
+
+    .analyst-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .analyst-card-name {
+      font-family: var(--font-title);
+      font-size: 0.88rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .analyst-card-score {
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .analyst-card-workload {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+    }
+
+    .analyst-bar-container {
+      height: 4px;
+      background-color: var(--bg-secondary);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .analyst-bar-fill {
+      height: 100%;
+      background-color: var(--teal);
+      border-radius: 99px;
+      transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .analyst-card-footer {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .analyst-card-footer-lbl {
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+
+    .analyst-card-footer-val {
+      font-family: var(--font-mono);
+    }
+
+    /* ======================================================
+       PENDENCIAS SECTION & DROPDOWN FILTERS
+    ====================================================== */
+    .pendencias-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+
+    .filter-select-custom {
+      background-color: var(--bg-secondary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.45rem 1rem;
+      font-family: var(--font-body);
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      outline: none;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .filter-select-custom:focus {
+      border-color: var(--teal);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    .custom-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.8rem;
+    }
+
+    .custom-table th {
+      background-color: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.85rem 1rem;
+      border-bottom: 2px solid var(--border);
+      text-align: left;
+    }
+
+    .custom-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid rgba(0, 194, 168, 0.08);
+      color: var(--text-primary);
+    }
+
+    .custom-table tr:hover td {
+      background-color: rgba(0, 194, 168, 0.04);
+    }
+
+    .custom-table td.mono {
+      font-family: var(--font-mono);
+    }
+
+    .status-badge-pending {
+      display: inline-block;
+      padding: 0.18rem 0.45rem;
+      background-color: var(--danger-bg);
+      color: var(--danger);
+      font-weight: 700;
+      font-size: 0.65rem;
+      border-radius: var(--radius);
+      letter-spacing: 0.02em;
+    }
+
+    .table-footer-custom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 1rem;
+      margin-top: 1rem;
+      border-top: 1px solid rgba(0, 194, 168, 0.1);
+    }
+
+    #pendInfo {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+
+    .pag-btns { display: flex; gap: 0.25rem; }
+
+    .pag-btn {
+      padding: 0.3rem 0.6rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .pag-btn:hover, .pag-btn.active {
+      background-color: var(--teal);
+      border-color: var(--teal);
+      color: var(--navy);
+      font-weight: 700;
+    }
+
+    .pag-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    /* ======================================================
+       LOADING OVERLAY
+    ====================================================== */
+    #loadingOverlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg-primary);
+      z-index: 9999;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 2px solid var(--border);
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text {
+      font-family: var(--font-title);
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    /* ======================================================
+       FOOTER
+    ====================================================== */
+    footer {
+      text-align: left;
+      padding: 2rem;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      border-top: 1px solid rgba(0, 194, 168, 0.15);
+      background-color: var(--bg-card);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* ======================================================
+       RESPONSIVE
+    ====================================================== */
+    @media (max-width: 1024px) {
+      .charts-grid-2, .charts-grid-3 { grid-template-columns: 1fr; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      main { padding: 1.5rem; }
+    }
+
+    @media (max-width: 600px) {
+      .header { padding: 0 1rem; }
+      .header-month-badge { display: none; }
+      .kpi-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text">CARREGANDO DADOS DO SISTEMA</div>
+  </div>
+
+  <div class="app-wrapper">
+    <!-- HEADER -->
+    <header class="header">
+      <a href="#" class="header-logo" onclick="refreshDashboard(); return false;">
+        <div class="logo-svg">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="9" y1="9" x2="15" y2="9"></line>
+            <line x1="9" y1="13" x2="15" y2="13"></line>
+            <line x1="9" y1="17" x2="13" y2="17"></line>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="logo-title">DP CONTROLE</span>
+          <span class="logo-sub">DASHBOARD GERENCIAL</span>
+        </div>
+      </a>
+
+      <div class="header-spacer"></div>
+
+      <div class="header-month-badge" id="monthBadge" style="display:none;">
+        <span class="dot"></span>
+        <span id="monthLabel">-</span>
+      </div>
+
+      <button class="btn-theme" id="themeBtn" onclick="toggleTheme()">CLARO</button>
+
+      <button class="btn btn-primary" onclick="refreshDashboard()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+        </svg>
+        ATUALIZAR
+      </button>
+    </header>
+
+    <main>
+      <!-- LANDING — exibido apenas quando não há competência ativa ou em caso de erro -->
+      <div id="landing" style="display:none;">
+        <h1 class="landing-title" id="landingTitle">NENHUMA COMPETÊNCIA ATIVA</h1>
+        <p class="landing-sub" id="landingMsg">
+          Não há competências abertas no sistema no momento.
+        </p>
+        <button class="btn btn-primary" onclick="refreshDashboard()">VERIFICAR NOVAMENTE</button>
+      </div>
+
+      <!-- DASHBOARD (Cabeçalho oculto após importação) -->
+      <div id="dashboard">
+
+        <!-- DASHBOARD CONTROLS BAR (Visível apenas após importar) -->
+        <div class="dashboard-controls-bar">
+          <div class="controls-left">
+            <span class="logo-title-mini">DP CONTROLE</span>
+            <div class="header-month-badge-mini">
+              <span class="dot"></span>
+              <span id="dashboardMonthLabel">-</span>
+            </div>
+          </div>
+          <div class="controls-right">
+            <button class="btn-theme-mini" onclick="toggleTheme()" id="themeBtnMini">CLARO</button>
+            <button class="btn" onclick="refreshDashboard()" style="border-color:var(--teal);color:var(--teal);">↻ ATUALIZAR</button>
+          </div>
+        </div>
+
+        <!-- KPI ROW -->
+        <h2 class="section-title-custom">RESULTADOS DE OPERAÇÃO</h2>
+        <p class="section-subtitle-custom" style="margin-bottom: 1.25rem;">INDICADORES GERAIS DE CONTROLE DO MÊS</p>
+        
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">TOTAL DE CARTEIRAS</div>
+            <div class="kpi-value mono" id="valTotalCarteiras">-</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">COM MOVIMENTO</div>
+            <div class="kpi-value mono" id="valCarteiras">-</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">SEM MOVIMENTO</div>
+            <div class="kpi-value mono" id="valSemMovimento">-</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">COLABORADORES ATIVOS (VIDAS)</div>
+            <div class="kpi-value mono" id="valVidas">-</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">ANALISTAS ATIVOS</div>
+            <div class="kpi-value mono" id="valAnalistas">-</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">TAXA DE CONCLUSÃO</div>
+            <div class="kpi-value mono text-teal" id="valConclusao">-</div>
+          </div>
+          <div class="kpi-card kpi-interactive" onclick="filterPendings('ALL')" style="cursor: pointer;">
+            <div class="kpi-label">PENDÊNCIAS OPERACIONAIS</div>
+            <div class="kpi-value mono text-danger" id="valPendencias">-</div>
+            <div class="kpi-action-hint">CLIQUE PARA DETALHAR</div>
+          </div>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <!-- CHARTS ROW 1 -->
+        <div class="pendencias-header">
+          <div>
+            <h2 class="section-title-custom">ANÁLISE DE PRODUTIVIDADE</h2>
+            <p class="section-subtitle-custom">EFICIÊNCIA INDIVIDUAL E DISTRIBUIÇÃO OPERACIONAL</p>
+          </div>
+        </div>
+        
+        <div class="charts-grid-2">
+          <div class="chart-card">
+            <div class="chart-title-wrap">
+              <div class="chart-header-title">Carteiras por Analista</div>
+              <div class="chart-header-sub">Volume total de empresas com movimento</div>
+            </div>
+            <div class="chart-container" style="height:280px">
+              <canvas id="chartCarteiras"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title-wrap">
+              <div class="chart-header-title">Taxa de Conclusão por Analista</div>
+              <div class="chart-header-sub">Eficiência média das entregas solicitadas</div>
+            </div>
+            <div class="chart-container" style="height:280px">
+              <canvas id="chartConclusao"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- CHARTS ROW 2 -->
+        <div class="charts-grid-3">
+          <div class="chart-card">
+            <div class="chart-title-wrap">
+              <div class="chart-header-title">Status Geral de Entregas</div>
+              <div class="chart-header-sub">Proporção líquida (excluindo N/T e Não Ocorridos)</div>
+            </div>
+            <div class="chart-container" style="height:220px">
+              <canvas id="chartStatus"></canvas>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title-wrap">
+              <div class="chart-header-title">Distribuição de Funcionários por Analista</div>
+              <div class="chart-header-sub">Total de vidas coordenadas sob cada profissional</div>
+            </div>
+            <div class="chart-container" style="height:220px">
+              <canvas id="chartFuncionarios"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <!-- CHARTS ROW 3 (PENDENCIAS POR TIPO) -->
+        <div class="pendencias-header">
+          <div>
+            <h2 class="section-title-custom">VOLUMES DE PENDÊNCIAS POR OBRIGAÇÃO</h2>
+            <p class="section-subtitle-custom">IDENTIFICAÇÃO DE GARGALOS OPERACIONAIS (CLIQUE NAS COLUNAS PARA FILTRAR)</p>
+          </div>
+        </div>
+
+        <div class="chart-card full-width" style="margin-bottom: 2rem;">
+          <div class="chart-container" style="height:260px">
+            <canvas id="chartPendencias"></canvas>
+          </div>
+        </div>
+
+        <!-- TIMELINE CHART -->
+        <div class="pendencias-header">
+          <div>
+            <h2 class="section-title-custom">LINHA DO TEMPO</h2>
+            <p class="section-subtitle-custom">CONCENTRAÇÃO E VOLUME DIÁRIO DE ENTREGAS NO MÊS</p>
+          </div>
+          <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <select class="filter-select-custom" id="selectTimelineFilter" onchange="updateTimelineChart()">
+              <option value="">TODAS AS OBRIGAÇÕES</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="chart-card full-width" style="margin-bottom: 2.5rem;">
+          <div class="chart-container" style="height:220px">
+            <canvas id="chartTimeline"></canvas>
+          </div>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <!-- ANALYST PERFORMANCE LIST -->
+        <div class="pendencias-header">
+          <div>
+            <h2 class="section-title-custom">PERFORMANCE DOS ANALISTAS</h2>
+            <p class="section-subtitle-custom">CLIQUE NO CARD PARA EXIBIR AS TAREFAS PENDENTES DO ANALISTA</p>
+          </div>
+        </div>
+        <div class="analyst-grid" id="analystGrid"></div>
+
+        <div class="section-divider"></div>
+
+        <!-- PENDÊNCIAS SECTION (DETALHAMENTO) -->
+        <div id="pendenciasSection" class="chart-card full-width" style="display:none; margin-bottom:2.5rem;">
+          <div class="pendencias-header">
+            <div>
+              <h2 class="section-title-custom">DETALHAMENTO DE PENDÊNCIAS</h2>
+              <p class="section-subtitle-custom" id="pendenciasFilterLabel">EXIBINDO TODAS AS TAREFAS PENDENTES</p>
+            </div>
+            <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+              <select class="filter-select-custom" id="selectAnalistaFilter" onchange="onSelectFilterChange()">
+                <option value="">TODOS OS ANALISTAS</option>
+              </select>
+              <select class="filter-select-custom" id="selectObrigacaoFilter" onchange="onSelectFilterChange()">
+                <option value="">TODAS AS OBRIGAÇÕES</option>
+              </select>
+              <button class="btn" id="clearFilterBtn" onclick="clearPendingFilters()">EXIBIR TODAS</button>
+              <button class="btn" onclick="exportExcel()" style="border-color: var(--teal); color: var(--teal);">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                EXPORTAR EXCEL
+              </button>
+            </div>
+          </div>
+          
+          <div class="table-wrap">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th style="width: 80px;">CÓDIGO</th>
+                  <th>RAZÃO SOCIAL</th>
+                  <th>ANALISTA</th>
+                  <th style="text-align: right; width: 120px;">FUNCIONÁRIOS</th>
+                  <th>OBRIGAÇÃO PENDENTE</th>
+                  <th style="width: 120px; text-align: center;">STATUS</th>
+                </tr>
+              </thead>
+              <tbody id="pendenciasTableBody">
+                <!-- populated via JS -->
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="table-footer-custom">
+            <span id="pendInfo" class="mono"></span>
+            <div class="pag-btns" id="pendPagBtns"></div>
+          </div>
+        </div>
+
+      </div><!-- /dashboard -->
+    </main>
+
+    <footer>
+      <span>DP CONTROLE &nbsp;·&nbsp; DASHBOARD GERENCIAL</span>
+      <span id="footerYear"></span>
+    </footer>
+  </div><!-- /app-wrapper -->
+
+  <script>
+  // Register Chart.js DataLabels plugin
+  Chart.register(ChartDataLabels);
+
+  /* ============================================================
+     SUPABASE
+  ============================================================ */
+  const SUPA_URL = 'https://lpktdwfwlrqzyrvxcuum.supabase.co';
+  const SUPA_KEY = 'sb_publishable_6ohdnk6vaoiqtUC_Tq66OQ_wFV7evK0';
+  const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+  const MES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  /* ============================================================
+     GLOBALS
+  ============================================================ */
+  let HEADERS    = [];
+  let DATA_ROWS  = [];
+  let CHARTS     = {};
+  let CURRENT_PAGE = 1;
+  const PAGE_SIZE  = 15;
+
+  let CURRENT_PENDING_FILTER = {
+    type: 'ALL', // 'ALL', 'ANALYST', 'OBLIGATION', 'BOTH'
+    value: '',
+    analista: '',
+    obrigacao: ''
+  };
+
+  const DELIVERY_COLS = ['F','G','H','I','J','K','L','M','N','O','P','Q','R'];
+  const DELIVERY_LABELS = {
+    F:'Adiantamento', G:'F.Adiant', H:'Rec.Adian', I:'Apont.', J:'1ª Prévia',
+    K:'OK', L:'Rec.PG', M:'FGTS', N:'DARF', O:'Provis.', P:'Sindical', Q:'eSocial', R:'DCTF'
+  };
+  const COL_INDEX_MAP = { F:5, G:6, H:7, I:8, J:9, K:10, L:11, M:12, N:13, O:14, P:15, Q:16, R:17 };
+
+  const ANALYST_COLORS = [
+    '#00C2A8', '#4F83CC', '#FF4D4D', '#FFB300', '#9C27B0',
+    '#00bcd4', '#e91e63', '#8bc34a', '#ff9800', '#607d8b'
+  ];
+
+  /* ============================================================
+     THEME (DIURNO / NOTURNO)
+  ============================================================ */
+  let isDark = true;
+
+  function toggleTheme() {
+    isDark = !isDark;
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    const label = isDark ? 'CLARO' : 'ESCURO';
+    document.getElementById('themeBtn').textContent = label;
+    document.getElementById('themeBtnMini').textContent = label;
+    
+    // Rebuild charts to adapt text color variables
+    if (DATA_ROWS.length) rebuildCharts();
+  }
+
+  /* ============================================================
+     SUPABASE — CARREGAMENTO AUTOMÁTICO
+  ============================================================ */
+  (async () => {
+    // Guard de sessão: redireciona para o DP+ se não autenticado
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = '/'; return; }
+    await loadFromSupabase();
+  })();
+
+  async function loadFromSupabase() {
+    showLoading(true);
+    try {
+      // 1. Competência ativa (aberta) — fallback para a mais recente concluída
+      const { data: abertas, error: compErr } = await sb
+        .from('competencias').select('*').eq('status', 'aberta')
+        .order('ano', { ascending: false }).order('mes', { ascending: false }).limit(1);
+      if (compErr) throw compErr;
+
+      let comp = abertas?.[0];
+      if (!comp) {
+        const { data: concluidas } = await sb
+          .from('competencias').select('*').eq('status', 'concluida')
+          .order('ano', { ascending: false }).order('mes', { ascending: false }).limit(1);
+        comp = concluidas?.[0];
+      }
+      if (!comp) { showNoComp(); showLoading(false); return; }
+
+      // 2. Analistas
+      const { data: analistas } = await sb.from('usuarios').select('id, nome');
+      const analMap = {};
+      (analistas || []).forEach(a => { analMap[a.id] = a.nome; });
+
+      // 3. Atividades ordenadas (ordem define as colunas 6-17 do DATA_ROWS)
+      const { data: atividades } = await sb
+        .from('atividades').select('id, nome, label_curto, ordem')
+        .eq('ativo', true).order('ordem');
+
+      // 4. empresa_competencia com dados das empresas
+      const { data: ecList, error: ecErr } = await sb
+        .from('empresa_competencia')
+        .select('empresa_id, analista_id, tem_movimento, tem_adiantamento, funcionarios, empresas!inner(id, codigo, razao_social, data_inicio, data_fim)')
+        .eq('competencia_id', comp.id);
+      if (ecErr) throw ecErr;
+
+      // Filtra empresas válidas para o período (mesma lógica do index.html)
+      const d1 = `${comp.ano}-${String(comp.mes).padStart(2,'0')}-01`;
+      const d2 = new Date(comp.ano, comp.mes, 0).toISOString().split('T')[0];
+      const validEc = (ecList || []).filter(ec => {
+        const e = ec.empresas;
+        if (!e) return false;
+        const ioOk = !e.data_inicio || e.data_inicio <= d2;
+        const foOk = !e.data_fim    || e.data_fim    >= d1;
+        return ioOk && foOk;
+      });
+
+      // 5. Entregas paginadas — 390 emp × 12 atv = ~4.700 rows; busca em lotes de 1.000
+      let allEntregas = [];
+      let from = 0;
+      while (true) {
+        const { data: batch, error: entErr } = await sb
+          .from('entregas')
+          .select('empresa_id, atividade_id, data_conclusao, nao_ocorreu, nt')
+          .eq('competencia_id', comp.id)
+          .range(from, from + 999);
+        if (entErr) throw entErr;
+        allEntregas = allEntregas.concat(batch || []);
+        if (!batch || batch.length < 1000) break;
+        from += 1000;
+      }
+      const entIdx = {};
+      allEntregas.forEach(e => { entIdx[`${e.empresa_id}|${e.atividade_id}`] = e; });
+
+      // 6. Monta DATA_ROWS no mesmo formato do Excel exportado pelo DP+
+      //    [0]código [1]razão social [2]analista [3]funcionários
+      //    [4]movimento [5]adiantamento [6..17]atividades by ordem
+      DATA_ROWS = validEc.map(ec => {
+        const emp = ec.empresas;
+        const row = [
+          emp.codigo,
+          emp.razao_social || '',
+          analMap[ec.analista_id] || '',
+          ec.funcionarios || 0,
+          ec.tem_movimento   ? 'Com movimento' : 'Sem movimento',
+          ec.tem_adiantamento ? 'Sim'           : 'Não'
+        ];
+        (atividades || []).forEach(atv => {
+          const ent = entIdx[`${emp.id}|${atv.id}`];
+          let val;
+          if (!ent || ent.nt)          val = 'N/T';
+          else if (ent.nao_ocorreu)    val = 'Não ocorreu';
+          else if (ent.data_conclusao) val = ent.data_conclusao.split('-').reverse().join('/');
+          else                          val = 'Pendente';
+          row.push(val);
+        });
+        return row;
+      });
+
+      // 7. Atualiza labels de mês e exibe dashboard
+      const label = `${MES_PT[comp.mes - 1]}/${comp.ano}`;
+      document.getElementById('monthLabel').textContent          = label.toUpperCase();
+      document.getElementById('dashboardMonthLabel').textContent = label.toUpperCase();
+      document.getElementById('monthBadge').style.display        = 'flex';
+      document.getElementById('landing').style.display           = 'none';
+      document.querySelector('header.header').style.display      = 'none';
+
+      buildDashboard();
+    } catch (err) {
+      console.error('Dashboard: erro ao carregar dados:', err);
+      document.getElementById('landingTitle').textContent = 'ERRO AO CARREGAR DADOS';
+      document.getElementById('landingMsg').textContent   = err.message || 'Verifique sua conexão e tente novamente.';
+      document.getElementById('landing').style.display   = 'flex';
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  function showNoComp() {
+    document.getElementById('landingTitle').textContent = 'NENHUMA COMPETÊNCIA ATIVA';
+    document.getElementById('landingMsg').textContent   = 'Não há competências abertas ou concluídas no sistema no momento.';
+    document.getElementById('landing').style.display    = 'flex';
+  }
+
+  async function refreshDashboard() {
+    destroyCharts();
+    DATA_ROWS = [];
+    document.getElementById('dashboard').style.display        = 'none';
+    document.getElementById('pendenciasSection').style.display = 'none';
+    document.getElementById('selectAnalistaFilter').value     = '';
+    document.getElementById('selectObrigacaoFilter').value    = '';
+    await loadFromSupabase();
+  }
+
+  /* ============================================================
+     HELPERS & CLASSIFICATION
+  ============================================================ */
+  function showLoading(v) {
+    document.getElementById('loadingOverlay').style.display = v ? 'flex' : 'none';
+  }
+
+  function isDate(v) {
+    return /^\d{2}\/\d{2}\/\d{4}$/.test(String(v).trim());
+  }
+
+  function destroyCharts() {
+    Object.values(CHARTS).forEach(c => { if (c) c.destroy(); });
+    CHARTS = {};
+  }
+
+  function getThemeColors() {
+    const style = getComputedStyle(document.documentElement);
+    return {
+      text:    style.getPropertyValue('--text-primary').trim(),
+      secondary: style.getPropertyValue('--text-secondary').trim(),
+      border:  style.getPropertyValue('--border').trim(),
+      accent:  style.getPropertyValue('--teal').trim(),
+      danger:  style.getPropertyValue('--danger').trim()
+    };
+  }
+
+  function getChartDefaults() {
+    const colors = getThemeColors();
+    return {
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            color: colors.text,
+            font: { family: 'DM Sans', size: 10, weight: 500 }
+          }
+        },
+        datalabels: {
+          color: colors.text,
+          font: { family: 'DM Mono', size: 10, weight: 'bold' }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { color: colors.secondary, font: { family: 'DM Mono', size: 10 } }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: colors.secondary, font: { family: 'DM Mono', size: 10 } }
+        }
+      }
+    };
+  }
+
+  /* ============================================================
+     DATA PROCESSING FOR PENDINGS
+  ============================================================ */
+  function getPendingTasks() {
+    let pendings = [];
+    DATA_ROWS.forEach(r => {
+      // Consider only active companies with movement
+      if (String(r[4]).trim() !== 'Com movimento') return;
+      DELIVERY_COLS.forEach(c => {
+        const val = String(r[COL_INDEX_MAP[c]] || '').trim();
+        if (val === 'Pendente') {
+          pendings.push({
+            codigo: r[0],
+            razao: r[1],
+            analista: r[2],
+            vidas: parseInt(r[3]) || 0,
+            obrigacao: DELIVERY_LABELS[c]
+          });
+        }
+      });
+    });
+    return pendings;
+  }
+
+  /* ============================================================
+     BUILD DASHBOARD & COMPONENTS
+  ============================================================ */
+  function buildDashboard() {
+    document.getElementById('landing').style.display = 'none';
+    const dash = document.getElementById('dashboard');
+    dash.style.display = 'block';
+
+    // Competência no cabeçalho interno
+    document.getElementById('dashboardMonthLabel').textContent = document.getElementById('monthLabel').textContent;
+    
+    // Smooth entry transition
+    dash.classList.remove('animated-entry');
+    void dash.offsetWidth; // force reflow
+    dash.classList.add('animated-entry');
+
+    destroyCharts();
+    computeKPIs();
+    buildCharts();
+    buildAnalystCards();
+    
+    // Popula selects do quadro de pendências
+    populatePendingFilters();
+
+    // Clear filters and show table
+    CURRENT_PENDING_FILTER = { type: 'ALL', value: '', analista: '', obrigacao: '' };
+    CURRENT_PAGE = 1;
+    renderFilteredPendings();
+  }
+
+  function rebuildCharts() {
+    destroyCharts();
+    buildCharts();
+  }
+
+  /* ============================================================
+     KPI COMPUTATION
+  ============================================================ */
+  function computeKPIs() {
+    const total = DATA_ROWS.length;
+    const totalWithMov = DATA_ROWS.filter(r => String(r[4]).trim() === 'Com movimento').length;
+    const totalSemMov = DATA_ROWS.filter(r => String(r[4]).trim() === 'Sem movimento').length;
+    const totalFunc    = DATA_ROWS.reduce((s,r) => s + (parseInt(r[3]) || 0), 0);
+    const totalAnalistas = [...new Set(DATA_ROWS.map(r => String(r[2]).trim()).filter(a => a && a !== 'coordenacao' && a !== 'implantacao'))].length;
+
+    // Filtered status calculations (exclude N/T, Não ocorreu, etc.)
+    let requiredTasks = 0;
+    let completedTasks = 0;
+    let pendingTasks = 0;
+
+    DATA_ROWS.forEach(r => {
+      if (String(r[4]).trim() !== 'Com movimento') return;
+      DELIVERY_COLS.forEach(c => {
+        const val = String(r[COL_INDEX_MAP[c]] || '').trim();
+        if (isDate(val) || val === 'Sim') {
+          requiredTasks++;
+          completedTasks++;
+        } else if (val === 'Pendente') {
+          requiredTasks++;
+          pendingTasks++;
+        }
+      });
+    });
+
+    const completionRate = requiredTasks > 0 ? Math.round((completedTasks / requiredTasks) * 100) : 0;
+
+    // Apply values to KPI cards
+    document.getElementById('valTotalCarteiras').textContent = total.toLocaleString('pt-BR');
+    document.getElementById('valCarteiras').textContent = totalWithMov.toLocaleString('pt-BR');
+    document.getElementById('valSemMovimento').textContent = totalSemMov.toLocaleString('pt-BR');
+    document.getElementById('valVidas').textContent = totalFunc.toLocaleString('pt-BR');
+    document.getElementById('valAnalistas').textContent = totalAnalistas.toLocaleString('pt-BR');
+    document.getElementById('valPendencias').textContent = pendingTasks.toLocaleString('pt-BR');
+    document.getElementById('valConclusao').textContent = completionRate + '%';
+  }
+
+  /* ============================================================
+     CHARTS GENERATION
+  ============================================================ */
+  function buildCharts() {
+    const colors = getThemeColors();
+    const def = getChartDefaults();
+
+    // Map analyst work statistics
+    const analystMap = {};
+    DATA_ROWS.forEach(r => {
+      const a = String(r[2]).trim();
+      if (!a) return;
+      if (!analystMap[a]) {
+        analystMap[a] = { count: 0, func: 0, done: 0, required: 0 };
+      }
+      // Count companies (Com movimento only)
+      if (String(r[4]).trim() === 'Com movimento') {
+        analystMap[a].count++;
+        DELIVERY_COLS.forEach(c => {
+          const val = String(r[COL_INDEX_MAP[c]] || '').trim();
+          if (isDate(val) || val === 'Sim') {
+            analystMap[a].required++;
+            analystMap[a].done++;
+          } else if (val === 'Pendente') {
+            analystMap[a].required++;
+          }
+        });
+      }
+      analystMap[a].func += parseInt(r[3]) || 0;
+    });
+
+    const analysts = Object.keys(analystMap).filter(a => a !== 'coordenacao' && a !== 'implantacao');
+    const colorsList = analysts.map((_, i) => ANALYST_COLORS[i % ANALYST_COLORS.length]);
+
+    // 1. Carteiras por Analista (Horizontal Bar)
+    const counts = analysts.map(a => analystMap[a].count);
+    CHARTS.carteiras = new Chart(document.getElementById('chartCarteiras'), {
+      type: 'bar',
+      data: {
+        labels: analysts.map(a => a.split(' ')[0]),
+        datasets: [{
+          data: counts,
+          backgroundColor: colorsList,
+          borderWidth: 0,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            anchor: 'end',
+            align: 'right',
+            color: colors.text,
+            font: { family: 'DM Mono', size: 10, weight: 'bold' }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: colors.secondary } },
+          y: { grid: { display: false }, ticks: { color: colors.secondary } }
+        }
+      }
+    });
+
+    // 2. Taxa de Conclusão por Analista (Vertical Bar)
+    const rates = analysts.map(a => {
+      const d = analystMap[a];
+      return d.required > 0 ? Math.round((d.done / d.required) * 100) : 0;
+    });
+    CHARTS.conclusao = new Chart(document.getElementById('chartConclusao'), {
+      type: 'bar',
+      data: {
+        labels: analysts.map(a => a.split(' ')[0]),
+        datasets: [{
+          data: rates,
+          backgroundColor: rates.map(r => r >= 80 ? colors.accent : r >= 60 ? '#FFB300' : colors.danger),
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            anchor: 'end',
+            align: 'top',
+            color: colors.text,
+            font: { family: 'DM Mono', size: 10, weight: 'bold' },
+            formatter: v => v + '%'
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: colors.secondary } },
+          y: { grid: { display: false }, min: 0, max: 110, ticks: { color: colors.secondary } }
+        }
+      }
+    });
+
+    // 3. Status Geral de Entregas (Vertical Bar - Concluídos vs Pendentes)
+    let totalDone = 0;
+    let totalPend = 0;
+    DATA_ROWS.forEach(r => {
+      if (String(r[4]).trim() !== 'Com movimento') return;
+      DELIVERY_COLS.forEach(c => {
+        const val = String(r[COL_INDEX_MAP[c]] || '').trim();
+        if (isDate(val) || val === 'Sim') totalDone++;
+        else if (val === 'Pendente') totalPend++;
+      });
+    });
+
+    CHARTS.status = new Chart(document.getElementById('chartStatus'), {
+      type: 'bar', // Alterado de rosca para barra vertical para evitar sobreposição e tornar o visual vertical
+      data: {
+        labels: ['Concluídos', 'Pendentes'],
+        datasets: [{
+          data: [totalDone, totalPend],
+          backgroundColor: [colors.accent, colors.danger],
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            anchor: 'end',
+            align: 'top',
+            color: colors.text,
+            font: { family: 'DM Mono', size: 10, weight: 'bold' },
+            formatter: (value, ctx) => {
+              let sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              let pct = Math.round((value / sum) * 100) + "%";
+              return value + " (" + pct + ")";
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: colors.secondary } },
+          y: { grid: { display: false }, ticks: { color: colors.secondary } }
+        }
+      }
+    });
+
+    // 4. Distribuição de Funcionários por Analista (Vertical Bar)
+    const funcCounts = analysts.map(a => analystMap[a].func);
+    CHARTS.funcionarios = new Chart(document.getElementById('chartFuncionarios'), {
+      type: 'bar',
+      data: {
+        labels: analysts.map(a => a.split(' ')[0]),
+        datasets: [{
+          data: funcCounts,
+          backgroundColor: colorsList,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            anchor: 'end',
+            align: 'top',
+            color: colors.text,
+            font: { family: 'DM Mono', size: 10, weight: 'bold' }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: colors.secondary } },
+          y: { grid: { display: false }, ticks: { color: colors.secondary } }
+        }
+      }
+    });
+
+    // 5. Pendências por Tipo de Entrega (Clickable vertical bars)
+    const pendenciesByCol = {};
+    DELIVERY_COLS.forEach(c => { pendenciesByCol[c] = 0; });
+    DATA_ROWS.forEach(r => {
+      if (String(r[4]).trim() !== 'Com movimento') return;
+      DELIVERY_COLS.forEach(c => {
+        const val = String(r[COL_INDEX_MAP[c]] || '').trim();
+        if (val === 'Pendente') pendenciesByCol[c]++;
+      });
+    });
+
+    const activeOBLs = DELIVERY_COLS.filter(c => pendenciesByCol[c] > 0);
+
+    CHARTS.pendencias = new Chart(document.getElementById('chartPendencias'), {
+      type: 'bar',
+      data: {
+        labels: activeOBLs.map(c => DELIVERY_LABELS[c]),
+        datasets: [{
+          data: activeOBLs.map(c => pendenciesByCol[c]),
+          backgroundColor: colors.danger,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        onClick: (event, elements) => {
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            const label = CHARTS.pendencias.data.labels[index];
+            filterPendingsByObligation(label);
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            anchor: 'end',
+            align: 'top',
+            color: colors.text,
+            font: { family: 'DM Mono', size: 10, weight: 'bold' }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: colors.secondary } },
+          y: { grid: { display: false }, ticks: { color: colors.secondary } }
+        }
+      }
+    });
+
+    // 6. Linha do tempo de entregas (Line chart, no grid, no datalabels)
+    renderTimelineChart();
+  }
+
+  function renderTimelineChart(obrigacaoFilter = '') {
+    if (CHARTS.timeline) {
+      CHARTS.timeline.destroy();
+    }
+    
+    const colors = getThemeColors();
+    const dateMap = {};
+    let deliveryIndices = [5,6,7,8,9,10,11,12,13,14,15,16,17];
+    
+    if (obrigacaoFilter) {
+      const colLetter = Object.keys(DELIVERY_LABELS).find(k => DELIVERY_LABELS[k] === obrigacaoFilter);
+      if (colLetter) {
+        deliveryIndices = [COL_INDEX_MAP[colLetter]];
+      }
+    }
+
+    DATA_ROWS.forEach(r => {
+      deliveryIndices.forEach(idx => {
+        const val = String(r[idx] || '').trim();
+        if (isDate(val)) {
+          dateMap[val] = (dateMap[val] || 0) + 1;
+        }
+      });
+    });
+
+    const sortedDates = Object.keys(dateMap).sort((a, b) => {
+      const [da, ma, ya] = a.split('/');
+      const [db, mb, yb] = b.split('/');
+      return new Date(ya, ma-1, da) - new Date(yb, mb-1, db);
+    });
+
+    CHARTS.timeline = new Chart(document.getElementById('chartTimeline'), {
+      type: 'line',
+      data: {
+        labels: sortedDates,
+        datasets: [{
+          data: sortedDates.map(d => dateMap[d]),
+          borderColor: colors.accent,
+          backgroundColor: 'rgba(0, 194, 168, 0.08)',
+          fill: true,
+          tension: 0.3,
+          pointBackgroundColor: colors.accent,
+          pointRadius: 3,
+          pointHoverRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          datalabels: { display: false }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: colors.secondary } },
+          y: { grid: { display: false }, ticks: { color: colors.secondary } }
+        }
+      }
+    });
+  }
+
+  function updateTimelineChart() {
+    const filterVal = document.getElementById('selectTimelineFilter').value;
+    renderTimelineChart(filterVal);
+  }
+
+  /* ============================================================
+     ANALYST CARDS RENDER
+  ============================================================ */
+  function buildAnalystCards() {
+    const analystMap = {};
+    DATA_ROWS.forEach(r => {
+      const a = String(r[2]).trim();
+      if (!a) return;
+      if (!analystMap[a]) {
+        analystMap[a] = { count: 0, func: 0, done: 0, required: 0, pend: 0 };
+      }
+      analystMap[a].func += parseInt(r[3]) || 0;
+      if (String(r[4]).trim() === 'Com movimento') {
+        analystMap[a].count++;
+        DELIVERY_COLS.forEach(c => {
+          const val = String(r[COL_INDEX_MAP[c]] || '').trim();
+          if (isDate(val) || val === 'Sim') {
+            analystMap[a].required++;
+            analystMap[a].done++;
+          } else if (val === 'Pendente') {
+            analystMap[a].required++;
+            analystMap[a].pend++;
+          }
+        });
+      }
+    });
+
+    const analysts = Object.keys(analystMap)
+      .filter(a => a !== 'coordenacao' && a !== 'implantacao')
+      .sort((a, b) => {
+        const rateA = analystMap[a].required > 0 ? (analystMap[a].done / analystMap[a].required) : 0;
+        const rateB = analystMap[b].required > 0 ? (analystMap[b].done / analystMap[b].required) : 0;
+        return rateB - rateA;
+      });
+
+    const grid = document.getElementById('analystGrid');
+    grid.innerHTML = analysts.map((a, i) => {
+      const d = analystMap[a];
+      const rate = d.required > 0 ? Math.round((d.done / d.required) * 100) : 0;
+      const progressColor = rate >= 80 ? 'var(--teal)' : rate >= 60 ? '#FFB300' : 'var(--danger)';
+
+      return `
+        <div class="analyst-card animate-hover" onclick="filterPendingsByAnalyst('${a}')">
+          <div class="analyst-card-header">
+            <div>
+              <div class="analyst-card-name">${a}</div>
+              <div class="analyst-card-workload">${d.count} empresas &bull; ${d.func.toLocaleString('pt-BR')} vidas</div>
+            </div>
+            <div class="analyst-card-score" style="color: ${progressColor}">${rate}%</div>
+          </div>
+          <div class="analyst-bar-container">
+            <div class="analyst-bar-fill" style="width: ${rate}%; background-color: ${progressColor};"></div>
+          </div>
+          <div class="analyst-card-footer">
+            <div>
+              <span class="analyst-card-footer-lbl">Pendente: </span>
+              <span class="analyst-card-footer-val text-danger">${d.pend}</span>
+            </div>
+            <div>
+              <span class="analyst-card-footer-lbl">Concluído: </span>
+              <span class="analyst-card-footer-val text-teal">${d.done}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  /* ============================================================
+     PENDÊNCIAS FILTERING & GRID INTERACTION
+  ============================================================ */
+  function populatePendingFilters() {
+    const allPendings = getPendingTasks();
+    
+    // Unique analysts
+    const uniqueAnalysts = [...new Set(allPendings.map(p => p.analista))].sort();
+    const selectAnalista = document.getElementById('selectAnalistaFilter');
+    selectAnalista.innerHTML = '<option value="">TODOS OS ANALISTAS</option>' +
+      uniqueAnalysts.map(a => `<option value="${a}">${a.toUpperCase()}</option>`).join('');
+
+    // Unique obligations
+    const uniqueObligations = [...new Set(allPendings.map(p => p.obrigacao))].sort();
+    const selectObrigacao = document.getElementById('selectObrigacaoFilter');
+    selectObrigacao.innerHTML = '<option value="">TODAS AS OBRIGAÇÕES</option>' +
+      uniqueObligations.map(o => `<option value="${o}">${o.toUpperCase()}</option>`).join('');
+
+    // Timeline obligation filter
+    const selectTimeline = document.getElementById('selectTimelineFilter');
+    if (selectTimeline) {
+      const allObs = Object.values(DELIVERY_LABELS).sort();
+      selectTimeline.innerHTML = '<option value="">TODAS AS OBRIGAÇÕES</option>' +
+        allObs.map(o => `<option value="${o}">${o.toUpperCase()}</option>`).join('');
+    }
+  }
+
+  function filterPendings(type, val) {
+    CURRENT_PENDING_FILTER = { type: type, value: val, analista: '', obrigacao: '' };
+    
+    // Sincronizar selects visuais
+    if (type === 'ALL') {
+      document.getElementById('selectAnalistaFilter').value = "";
+      document.getElementById('selectObrigacaoFilter').value = "";
+    } else if (type === 'ANALYST') {
+      document.getElementById('selectAnalistaFilter').value = val;
+      document.getElementById('selectObrigacaoFilter').value = "";
+    } else if (type === 'OBLIGATION') {
+      document.getElementById('selectObrigacaoFilter').value = val;
+      document.getElementById('selectAnalistaFilter').value = "";
+    }
+
+    CURRENT_PAGE = 1;
+    renderFilteredPendings();
+    document.getElementById('pendenciasSection').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function filterPendingsByAnalyst(name) {
+    filterPendings('ANALYST', name);
+  }
+
+  function filterPendingsByObligation(label) {
+    filterPendings('OBLIGATION', label);
+  }
+
+  function clearPendingFilters() {
+    filterPendings('ALL', '');
+  }
+
+  function onSelectFilterChange() {
+    const analistaVal = document.getElementById('selectAnalistaFilter').value;
+    const obrigacaoVal = document.getElementById('selectObrigacaoFilter').value;
+    
+    if (analistaVal && obrigacaoVal) {
+      CURRENT_PENDING_FILTER = {
+        type: 'BOTH',
+        analista: analistaVal,
+        obrigacao: obrigacaoVal
+      };
+    } else if (analistaVal) {
+      CURRENT_PENDING_FILTER = {
+        type: 'ANALYST',
+        value: analistaVal
+      };
+    } else if (obrigacaoVal) {
+      CURRENT_PENDING_FILTER = {
+        type: 'OBLIGATION',
+        value: obrigacaoVal
+      };
+    } else {
+      CURRENT_PENDING_FILTER = {
+        type: 'ALL',
+        value: ''
+      };
+    }
+    CURRENT_PAGE = 1;
+    renderFilteredPendings();
+  }
+
+  function renderFilteredPendings() {
+    const tableBody = document.getElementById('pendenciasTableBody');
+    const filterLabel = document.getElementById('pendenciasFilterLabel');
+    const section = document.getElementById('pendenciasSection');
+    
+    section.style.display = 'block';
+
+    const allPendings = getPendingTasks();
+    let filtered = [];
+
+    if (CURRENT_PENDING_FILTER.type === 'ALL') {
+      filtered = allPendings;
+      filterLabel.textContent = 'EXIBINDO TODAS AS TAREFAS PENDENTES DO MÊS';
+    } else if (CURRENT_PENDING_FILTER.type === 'ANALYST') {
+      filtered = allPendings.filter(p => p.analista === CURRENT_PENDING_FILTER.value);
+      filterLabel.textContent = `PENDÊNCIAS FILTRADAS POR ANALISTA: ${CURRENT_PENDING_FILTER.value.toUpperCase()}`;
+    } else if (CURRENT_PENDING_FILTER.type === 'OBLIGATION') {
+      filtered = allPendings.filter(p => p.obrigacao === CURRENT_PENDING_FILTER.value);
+      filterLabel.textContent = `PENDÊNCIAS FILTRADAS POR OBRIGAÇÃO: ${CURRENT_PENDING_FILTER.value.toUpperCase()}`;
+    } else if (CURRENT_PENDING_FILTER.type === 'BOTH') {
+      filtered = allPendings.filter(p => p.analista === CURRENT_PENDING_FILTER.analista && p.obrigacao === CURRENT_PENDING_FILTER.obrigacao);
+      filterLabel.textContent = `PENDÊNCIAS DE: ${CURRENT_PENDING_FILTER.analista.toUpperCase()} EM: ${CURRENT_PENDING_FILTER.obrigacao.toUpperCase()}`;
+    }
+
+    // Sort by lives descending (priority logic)
+    filtered.sort((a, b) => b.vidas - a.vidas);
+
+    if (filtered.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:3rem; color:var(--text-secondary); font-family: var(--font-title); font-weight:700;">NENHUMA TAREFA PENDENTE ENCONTRADA PARA ESTE FILTRO</td></tr>`;
+      document.getElementById('pendInfo').textContent = '0 de 0 pendências';
+      document.getElementById('pendPagBtns').innerHTML = '';
+      return;
+    }
+
+    // Table pagination
+    const total = filtered.length;
+    const pages = Math.ceil(total / PAGE_SIZE);
+    const start = (CURRENT_PAGE - 1) * PAGE_SIZE;
+    const end = start + PAGE_SIZE;
+    const pageItems = filtered.slice(start, end);
+
+    document.getElementById('pendInfo').textContent = `EXIBINDO ${start+1}–${Math.min(end, total)} DE ${total} PENDÊNCIAS`;
+
+    tableBody.innerHTML = pageItems.map(p => `
+      <tr>
+        <td class="mono">${p.codigo}</td>
+        <td style="font-weight: 500;">${p.razao}</td>
+        <td>${p.analista}</td>
+        <td class="mono" style="text-align: right;">${p.vidas.toLocaleString('pt-BR')}</td>
+        <td class="text-danger" style="font-weight:700;">${p.obrigacao}</td>
+        <td style="text-align: center;"><span class="status-badge-pending">PENDENTE</span></td>
+      </tr>
+    `).join('');
+
+    // Pagination elements
+    const pag = document.getElementById('pendPagBtns');
+    pag.innerHTML = '';
+
+    const btn = (lbl, targetPage, disabled, active) => {
+      const b = document.createElement('button');
+      b.className = 'pag-btn' + (active ? ' active' : '');
+      b.textContent = lbl;
+      b.disabled = disabled;
+      b.onclick = () => { CURRENT_PAGE = targetPage; renderFilteredPendings(); };
+      return b;
+    };
+
+    pag.appendChild(btn('‹', CURRENT_PAGE-1, CURRENT_PAGE===1, false));
+    for (let i = Math.max(1, CURRENT_PAGE-2); i <= Math.min(pages, CURRENT_PAGE+2); i++) {
+      pag.appendChild(btn(i, i, false, i===CURRENT_PAGE));
+    }
+    pag.appendChild(btn('›', CURRENT_PAGE+1, CURRENT_PAGE===pages, false));
+  }
+
+  /* ============================================================
+     EXPORT EXCEL
+  ============================================================ */
+  function exportExcel() {
+    const allPendings = getPendingTasks();
+    let filtered = [];
+
+    if (CURRENT_PENDING_FILTER.type === 'ALL') {
+      filtered = allPendings;
+    } else if (CURRENT_PENDING_FILTER.type === 'ANALYST') {
+      filtered = allPendings.filter(p => p.analista === CURRENT_PENDING_FILTER.value);
+    } else if (CURRENT_PENDING_FILTER.type === 'OBLIGATION') {
+      filtered = allPendings.filter(p => p.obrigacao === CURRENT_PENDING_FILTER.value);
+    } else if (CURRENT_PENDING_FILTER.type === 'BOTH') {
+      filtered = allPendings.filter(p => p.analista === CURRENT_PENDING_FILTER.analista && p.obrigacao === CURRENT_PENDING_FILTER.obrigacao);
+    }
+
+    filtered.sort((a, b) => b.vidas - a.vidas);
+
+    if (filtered.length === 0) {
+      alert('Nenhuma pendência encontrada para exportar com o filtro atual.');
+      return;
+    }
+
+    // Build worksheet data
+    const wsData = [
+      ['CÓDIGO', 'RAZÃO SOCIAL', 'ANALISTA', 'FUNCIONÁRIOS', 'OBRIGAÇÃO PENDENTE', 'STATUS']
+    ];
+
+    filtered.forEach(p => {
+      wsData.push([p.codigo, p.razao, p.analista, p.vidas, p.obrigacao, 'PENDENTE']);
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Column widths
+    ws['!cols'] = [
+      { wch: 10 },  // CÓDIGO
+      { wch: 45 },  // RAZÃO SOCIAL
+      { wch: 22 },  // ANALISTA
+      { wch: 14 },  // FUNCIONÁRIOS
+      { wch: 20 },  // OBRIGAÇÃO
+      { wch: 12 }   // STATUS
+    ];
+
+    // Tab name based on current filter
+    let tabName = 'Pendências';
+    if (CURRENT_PENDING_FILTER.type === 'ANALYST') tabName = CURRENT_PENDING_FILTER.value.split(' ')[0];
+    else if (CURRENT_PENDING_FILTER.type === 'OBLIGATION') tabName = CURRENT_PENDING_FILTER.value;
+    else if (CURRENT_PENDING_FILTER.type === 'BOTH') tabName = CURRENT_PENDING_FILTER.analista.split(' ')[0];
+
+    XLSX.utils.book_append_sheet(wb, ws, tabName.substring(0, 31));
+
+    // File name based on month badge
+    const mes = document.getElementById('dashboardMonthLabel').textContent || 'fechamento';
+    const filename = 'DP_Pendencias_' + mes.replace(/[^a-zA-Z0-9-_]/g, '_') + '.xlsx';
+
+    XLSX.writeFile(wb, filename);
+  }
+
+  /* ============================================================
+     INIT
+  ============================================================ */
+  document.getElementById('footerYear').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
