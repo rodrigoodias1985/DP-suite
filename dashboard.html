@@ -952,6 +952,9 @@
             <p class="section-subtitle-custom">CONCENTRAÇÃO E VOLUME DIÁRIO DE ENTREGAS NO MÊS</p>
           </div>
           <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <select class="filter-select-custom" id="selectTimelineAnalistaFilter" onchange="updateTimelineChart()">
+              <option value="">TODOS OS ANALISTAS</option>
+            </select>
             <select class="filter-select-custom" id="selectTimelineFilter" onchange="updateTimelineChart()">
               <option value="">TODAS AS OBRIGAÇÕES</option>
             </select>
@@ -1632,7 +1635,7 @@
     renderTimelineChart();
   }
 
-  function renderTimelineChart(obrigacaoFilter = '') {
+  function renderTimelineChart(obrigacaoFilter = '', analistaFilter = '') {
     if (CHARTS.timeline) {
       CHARTS.timeline.destroy();
     }
@@ -1648,7 +1651,11 @@
       }
     }
 
-    DATA_ROWS.forEach(r => {
+    const rows = analistaFilter
+      ? DATA_ROWS.filter(r => String(r[2]).trim() === analistaFilter)
+      : DATA_ROWS;
+
+    rows.forEach(r => {
       deliveryIndices.forEach(idx => {
         const val = String(r[idx] || '').trim();
         if (isDate(val)) {
@@ -1694,8 +1701,9 @@
   }
 
   function updateTimelineChart() {
-    const filterVal = document.getElementById('selectTimelineFilter').value;
-    renderTimelineChart(filterVal);
+    const filterVal   = document.getElementById('selectTimelineFilter').value;
+    const analistaVal = document.getElementById('selectTimelineAnalistaFilter').value;
+    renderTimelineChart(filterVal, analistaVal);
   }
 
   /* ============================================================
@@ -1790,6 +1798,15 @@
       const allObs = Object.values(DELIVERY_LABELS).sort();
       selectTimeline.innerHTML = '<option value="">TODAS AS OBRIGAÇÕES</option>' +
         allObs.map(o => `<option value="${o}">${o.toUpperCase()}</option>`).join('');
+    }
+
+    // Timeline analyst filter
+    const selectTimelineAnalista = document.getElementById('selectTimelineAnalistaFilter');
+    if (selectTimelineAnalista) {
+      const allAnalysts = [...new Set(DATA_ROWS.map(r => String(r[2]).trim())
+        .filter(a => a && a !== 'coordenacao' && a !== 'implantacao'))].sort();
+      selectTimelineAnalista.innerHTML = '<option value="">TODOS OS ANALISTAS</option>' +
+        allAnalysts.map(a => `<option value="${a}">${a.toUpperCase()}</option>`).join('');
     }
   }
 
