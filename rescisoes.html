@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DP+ · Rescisões</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ============================================================
+   DESIGN TOKENS — copiados literalmente do index.html para manter
+   os dois módulos visualmente idênticos. Qualquer mudança de marca
+   ou paleta precisa ser replicada manualmente nos dois arquivos
+   (mesma limitação já documentada para auth-callback.html).
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+html { height: 100% }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  background: #f3f4f6;
+  color: #111827;
+  min-height: 100vh;
+}
+:root {
+  --teal:       #0d7377;
+  --teal-d:     #0a5d61;
+  --teal-bg:    #e6f4f4;
+  --navy:       #111827;
+  --gray-50:    #f9fafb;
+  --gray-100:   #f3f4f6;
+  --gray-200:   #e5e7eb;
+  --gray-400:   #9ca3af;
+  --gray-500:   #6b7280;
+  --gray-700:   #374151;
+  --green:      #16a34a;
+  --green-bg:   #dcfce7;
+  --red:        #dc2626;
+  --red-bg:     #fee2e2;
+  --amber:      #d97706;
+  --amber-bg:   #fef3c7;
+  --blue:       #2563eb;
+  --blue-bg:    #dbeafe;
+  --white:      #ffffff;
+  --radius:     8px;
+  --radius-lg:  12px;
+}
+.hidden { display: none !important }
+label { display: block; font-size: 11px; font-weight: 600; color: var(--gray-500);
+        text-transform: uppercase; letter-spacing:.05em; margin-bottom: 5px }
+input[type=text], input[type=date], input[type=number], select, textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius);
+  font-size: 13px;
+  outline: none;
+  background: var(--white);
+  font-family: inherit;
+  transition: border-color .15s;
+}
+textarea { resize: vertical; min-height: 60px }
+input:focus, select:focus, textarea:focus { border-color: var(--teal) }
+.btn {
+  padding: 9px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 600;
+  cursor: pointer; border: 1.5px solid transparent; transition: all .15s;
+}
+.btn-primary  { background: var(--teal); color: var(--white); }
+.btn-primary:hover { background: var(--teal-d) }
+.btn-primary:disabled { opacity: .55; cursor: not-allowed }
+.btn-secondary { background: var(--white); color: var(--gray-700); border-color: var(--gray-200) }
+.btn-secondary:hover { background: var(--gray-50) }
+.btn-danger { background: var(--red-bg); color: var(--red); border-color: #fca5a5 }
+.btn-xs {
+  padding:3px 9px; border-radius:5px; font-size:11px; font-weight:600;
+  cursor:pointer; border:1.5px solid transparent; transition:all .12s;
+}
+.spinner {
+  width: 18px; height: 18px; border: 2.5px solid var(--gray-200); border-top-color: var(--teal);
+  border-radius: 50%; animation: spin .8s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg) } }
+.loading { display:flex; align-items:center; justify-content:center;
+           gap: 10px; padding: 60px 20px; color: var(--gray-400); font-size:13px }
+.empty { text-align:center; padding:60px 20px; color:var(--gray-500) }
+.empty h3 { font-size:16px; font-weight:600; color:var(--gray-700); margin-bottom:8px }
+.empty p  { font-size:13px; line-height:1.6 }
+
+/* === HEADER === */
+header {
+  background: var(--navy); color: var(--white); height: 52px; padding: 0 20px;
+  display:flex; align-items:center; justify-content:space-between;
+  position: sticky; top:0; z-index:100;
+}
+.hd-l { display:flex; align-items:center; gap:14px }
+.hd-back { color:rgba(255,255,255,.7); text-decoration:none; font-size:13px; font-weight:500 }
+.hd-back:hover { color:#fff }
+.hd-logo { font-size:17px; font-weight:800; letter-spacing:-.5px }
+.hd-logo span { color: #22d3ee }
+.hd-title { font-size:13px; color:rgba(255,255,255,.6); font-weight:500 }
+.hd-r { display:flex; align-items:center; gap:12px }
+.hd-user { font-size:12px; color:rgba(255,255,255,.75) }
+.btn-sair {
+  background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); color:rgba(255,255,255,.85);
+  border-radius:var(--radius); padding:6px 12px; font-size:12px; cursor:pointer; transition:background .15s;
+}
+.btn-sair:hover { background:rgba(255,255,255,.2) }
+
+main { max-width: 980px; margin: 0 auto; padding: 20px }
+
+/* === FILTER BAR === */
+.toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px }
+.filter-bar { display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex:1 }
+.fbtn {
+  padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600; cursor:pointer;
+  border:1.5px solid var(--gray-200); background:var(--white); color:var(--gray-500); transition:all .12s;
+  white-space:nowrap;
+}
+.fbtn.on { background:var(--teal); border-color:var(--teal); color:var(--white) }
+.fbtn:hover:not(.on) { border-color:var(--teal); color:var(--teal) }
+.rs-search {
+  max-width: 220px;
+}
+.rs-search input { padding:7px 12px; font-size:12px }
+.fbtn-cancel-toggle {
+  padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600; cursor:pointer;
+  border:1.5px solid var(--red-bg); background:var(--white); color:var(--gray-400); transition:all .12s;
+  white-space:nowrap;
+}
+.fbtn-cancel-toggle.on { background:var(--red-bg); border-color:var(--red); color:var(--red) }
+
+/* === LISTA === */
+.rs-card.cancelada { opacity:.7; border-style:dashed }
+.badge-cancelada { background:var(--red-bg); color:var(--red) }
+.rs-card {
+  background:var(--white); border:1px solid var(--gray-200); border-radius:var(--radius-lg);
+  padding:14px 16px; margin-bottom:10px; cursor:pointer; transition:border-color .12s, box-shadow .12s;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+.rs-card:hover { border-color:var(--teal); box-shadow:0 2px 10px rgba(0,0,0,.05) }
+.rs-card.atrasada { border-left:3px solid var(--red) }
+.rs-main { flex:1; min-width:220px }
+.rs-nome { font-weight:700; font-size:13.5px; color:var(--navy) }
+.rs-sub { font-size:11.5px; color:var(--gray-500); margin-top:2px }
+.rs-meta { display:flex; gap:18px; align-items:center; flex-wrap:wrap }
+.rs-meta-item { font-size:11px; color:var(--gray-500) }
+.rs-meta-item b { color:var(--gray-700); font-weight:600 }
+.rs-prazo.atrasada { color:var(--red); font-weight:700 }
+
+/* === STATUS BADGE === */
+.badge {
+  font-size:11px; font-weight:700; padding:3px 11px; border-radius:12px; white-space:nowrap;
+}
+.st-solicitada         { background:var(--gray-100); color:var(--gray-500) }
+.st-em_calculo         { background:var(--amber-bg); color:var(--amber) }
+.st-em_conferencia     { background:var(--blue-bg);  color:var(--blue) }
+.st-aguardando_cliente { background:var(--red-bg);   color:var(--red) }
+.st-aprovada           { background:var(--teal-bg);  color:var(--teal) }
+.st-guias_emitidas     { background:var(--blue-bg);  color:var(--blue) }
+.st-finalizada         { background:var(--green-bg); color:var(--green) }
+
+/* === MODAL === */
+.overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200;
+  align-items:flex-start; justify-content:center; overflow-y:auto; padding:32px 16px;
+}
+.overlay.show { display:flex }
+.modal {
+  background:var(--white); border-radius:var(--radius-lg); padding:24px; width:100%;
+  max-width:480px; box-shadow:0 8px 40px rgba(0,0,0,.2);
+}
+.modal.wide { max-width: 640px }
+.modal h3 { font-size:16px; font-weight:700; margin-bottom:3px }
+.modal > p.sub { font-size:12px; color:var(--gray-500); margin-bottom:18px }
+.field { margin-bottom:14px }
+.frow2 { display:grid; grid-template-columns:1fr 1fr; gap:12px }
+.mactions { display:flex; gap:8px; margin-top:18px }
+.hint { font-size:11px; color:var(--gray-400); margin-top:4px; line-height:1.4 }
+.emp-found { font-size:12px; color:var(--teal); font-weight:600; margin-top:6px }
+.emp-err   { font-size:12px; color:var(--red);  font-weight:600; margin-top:6px }
+.close-x {
+  position:absolute; top:16px; right:16px; background:none; border:none; cursor:pointer;
+  font-size:18px; color:var(--gray-400); line-height:1;
+}
+.close-x:hover { color:var(--gray-700) }
+.modal { position:relative }
+
+/* === DETALHE === */
+.det-section { margin-top:20px; padding-top:16px; border-top:1px solid var(--gray-200) }
+.det-section h4 { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+                   color:var(--gray-500); margin-bottom:10px }
+.pipeline-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+.check-item {
+  display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--gray-100);
+}
+.check-item:last-child { border-bottom:none }
+.check-item input[type=checkbox] { margin-top:2px; width:16px; height:16px; accent-color:var(--teal); cursor:pointer }
+.check-body { flex:1 }
+.check-label { font-size:13px; font-weight:600; color:var(--navy) }
+.check-label.done { text-decoration:line-through; color:var(--gray-400); font-weight:500 }
+.check-meta { font-size:11px; color:var(--gray-400); margin-top:2px }
+.timeline-item { padding:8px 0 8px 16px; border-left:2px solid var(--gray-200); position:relative; margin-left:4px }
+.timeline-item::before {
+  content:''; position:absolute; left:-5px; top:12px; width:8px; height:8px;
+  border-radius:50%; background:var(--teal);
+}
+.timeline-item:last-child { border-left-color:transparent }
+.tl-status { font-size:12px; font-weight:700; color:var(--navy) }
+.tl-meta { font-size:11px; color:var(--gray-400); margin-top:1px }
+.tl-obs { font-size:11.5px; color:var(--gray-500); margin-top:3px; font-style:italic }
+.cancel-banner {
+  background:var(--red-bg); color:var(--red); border-radius:var(--radius); padding:12px 14px;
+  font-size:12.5px; margin-bottom:16px; line-height:1.5;
+}
+.cancel-banner b { display:block; font-size:13px; margin-bottom:2px }
+.status-changer { display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap; margin-bottom:10px }
+.status-changer select { width:auto; min-width:180px }
+.danger-zone { margin-top:20px; padding-top:16px; border-top:1px dashed var(--red-bg) }
+
+/* === TOAST === */
+#toast {
+  position:fixed; bottom:20px; right:20px; z-index:300; padding:12px 18px; border-radius:var(--radius);
+  font-size:13px; font-weight:500; box-shadow:0 4px 16px rgba(0,0,0,.18);
+}
+#toast.ok  { background:var(--green); color:#fff }
+#toast.err { background:var(--red); color:#fff }
+#toast.inf { background:var(--navy); color:#fff }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd-l">
+    <a href="/" class="hd-back">← DP+</a>
+    <div class="hd-logo" id="hd-logo-text">DP<span>+</span></div>
+    <div class="hd-title">Rescisões</div>
+  </div>
+  <div class="hd-r">
+    <span class="hd-user" id="hd-user"></span>
+    <button class="btn-sair" onclick="doLogout()">Sair</button>
+  </div>
+</header>
+
+<main>
+  <div id="v-loading" class="loading"><div class="spinner"></div> Carregando…</div>
+
+  <div id="v-content" class="hidden">
+    <div class="toolbar">
+      <div class="filter-bar" id="filter-bar"></div>
+      <button class="fbtn-cancel-toggle" id="btn-toggle-canceladas" onclick="toggleCanceladas()">Mostrar canceladas</button>
+      <div class="rs-search">
+        <input type="text" id="busca" placeholder="Buscar funcionário ou empresa…" oninput="renderLista()">
+      </div>
+      <button class="btn btn-primary" onclick="openCadastro()">+ Nova rescisão</button>
+    </div>
+
+    <div id="lista"></div>
+  </div>
+</main>
+
+<!-- ============================================================
+     MODAL — Nova rescisão
+     ============================================================ -->
+<div class="overlay" id="modal-cad">
+  <div class="modal wide">
+    <button class="close-x" onclick="closeCadastro()">✕</button>
+    <h3>Nova rescisão</h3>
+    <p class="sub">Preencha os dados para abrir o processo e gerar o checklist.</p>
+
+    <div class="field">
+      <label>Empresa (código)</label>
+      <input type="text" id="cad-empresa-codigo" placeholder="Digite o código da empresa"
+             oninput="onEmpresaCodigoInput()">
+      <div id="cad-empresa-status"></div>
+    </div>
+
+    <div class="field" id="cad-responsavel-wrap">
+      <label>Responsável</label>
+      <select id="cad-analista"></select>
+    </div>
+
+    <div class="field">
+      <label>Nome do funcionário</label>
+      <input type="text" id="cad-nome">
+    </div>
+
+    <div class="frow2">
+      <div class="field">
+        <label>Tipo de rescisão</label>
+        <select id="cad-tipo-rescisao"></select>
+      </div>
+      <div class="field">
+        <label>Aviso prévio</label>
+        <select id="cad-tipo-aviso"></select>
+      </div>
+    </div>
+
+    <div class="frow2">
+      <div class="field">
+        <label>Data da rescisão (último dia trabalhado)</label>
+        <input type="date" id="cad-data-rescisao">
+      </div>
+      <div class="field">
+        <label>Data da solicitação</label>
+        <input type="date" id="cad-data-solicitacao">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Data de recebimento dos apontamentos</label>
+      <input type="date" id="cad-data-recebimento">
+      <div class="hint">Data em que o escritório recebeu a documentação do cliente — deixe em branco se ainda não recebeu.</div>
+    </div>
+
+    <div class="field">
+      <label>Observações</label>
+      <textarea id="cad-obs"></textarea>
+    </div>
+
+    <div class="mactions">
+      <button class="btn btn-secondary" onclick="closeCadastro()">Cancelar</button>
+      <button class="btn btn-primary" id="cad-btn-salvar" onclick="submitCadastro()">Abrir rescisão</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL — Detalhe da rescisão
+     ============================================================ -->
+<div class="overlay" id="modal-det">
+  <div class="modal wide">
+    <button class="close-x" onclick="closeDetalhe()">✕</button>
+    <div id="det-body"></div>
+  </div>
+</div>
+
+<div id="toast" class="hidden"></div>
+
+<script>
+// ============================================================
+// CONFIG — mesmo projeto Supabase do index.html
+// ============================================================
+const SUPA_URL = 'https://lpktdwfwlrqzyrvxcuum.supabase.co';
+const SUPA_KEY = 'sb_publishable_6ohdnk6vaoiqtUC_Tq66OQ_wFV7evK0';
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ============================================================
+// CATÁLOGOS — fonte de verdade é o ENUM em migration_008. Se o
+// ENUM mudar, atualizar aqui manualmente (não há introspecção
+// automática de ENUM no cliente).
+// ============================================================
+// STATUS_ORDER controla o que aparece nos filtros e no seletor de
+// mudança de status. 'guias_emitidas' foi removido daqui por decisão
+// de Rodrigo (10/2026): na rotina real, emissão de guias é um item do
+// checklist (tarefas GRRF), não uma etapa própria do pipeline - manter
+// como status separado duplicava informação e não refletia o fluxo
+// real (aprovada -> executa checklist -> finalizada).
+// O valor CONTINUA existindo no ENUM do banco (rs_status_rescisao_t) -
+// não removido por lá para evitar cirurgia de tipo sem necessidade
+// funcional. STATUS_LABEL e a classe CSS .st-guias_emitidas foram
+// mantidos de propósito: se algum registro legado ainda tiver esse
+// status, ele continua sendo exibido corretamente (só não é mais
+// oferecido como destino de transição).
+const STATUS_ORDER = ['solicitada','em_calculo','em_conferencia',
+  'aguardando_cliente','aprovada','finalizada'];
+
+const STATUS_LABEL = {
+  solicitada: 'Solicitada', em_calculo: 'Em cálculo', em_conferencia: 'Em conferência',
+  aguardando_cliente: 'Aguardando cliente', aprovada: 'Aprovada',
+  guias_emitidas: 'Guias emitidas', finalizada: 'Finalizada'
+};
+
+const TIPO_RESCISAO_LABEL = {
+  sem_justa_causa: 'Sem justa causa', pedido_demissao: 'Pedido de demissão',
+  justa_causa: 'Justa causa', acordo_mutuo: 'Acordo mútuo',
+  termino_prazo: 'Término de prazo', antecipacao_empregador: 'Antecipação (empregador)',
+  antecipacao_empregado: 'Antecipação (empregado)'
+};
+
+const TIPO_AVISO_LABEL = {
+  trabalhado: 'Trabalhado', indenizado: 'Indenizado',
+  descontado: 'Descontado', nao_aplicavel: 'Não aplicável'
+};
+
+const TIPO_TAREFA_LABEL = {
+  calculo_trct: 'Cálculo do TRCT', esocial_s2299: 'eSocial S-2299',
+  aviso_previo: 'Aviso prévio', grrf_multa_40: 'GRRF — Multa 40%',
+  grrf_multa_20: 'GRRF — Multa 20%', grrf_fgts_mensal: 'GRRF — FGTS mensal',
+  formulario_seguro_desemprego: 'Formulário seguro-desemprego',
+  termo_acordo_mutuo: 'Termo de acordo mútuo',
+  indenizacao_art479: 'Indenização art. 479', indenizacao_art480: 'Indenização art. 480',
+  documentacao_justa_causa: 'Documentação justa causa',
+  recibo_quitacao_trct: 'Recibo de quitação do TRCT'
+};
+
+// ============================================================
+// ESTADO
+// ============================================================
+let ME = null, PERFIL = null, NOME = null;
+let ANALISTAS = [];
+let RESCISOES = [];
+let F_STATUS = 'todas';
+let SHOW_CANCELADAS = false;
+let CAD_EMPRESA = null;      // { id, codigo, razao_social } encontrada no cadastro
+let DET_RESCISAO_ID = null;  // id da rescisão aberta no modal de detalhe
+
+// ============================================================
+// INIT — guard de sessão (mesmo padrão do dashboard.html)
+// ============================================================
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '/'; return; }
+  ME = session.user;
+  await boot();
+})();
+
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_OUT') window.location.href = '/';
+});
+
+async function boot() {
+  const { data: u, error } = await sb
+    .from('usuarios').select('nome, perfil, ativo').eq('id', ME.id).single();
+
+  if (error || !u) { toast('Usuário não encontrado.', 'err'); await sb.auth.signOut(); return; }
+  if (!u.ativo)     { toast('Conta inativa.', 'err'); await sb.auth.signOut(); return; }
+
+  PERFIL = u.perfil; NOME = u.nome;
+  eid('hd-user').textContent = `${NOME} · ${PERFIL}`;
+
+  if (PERFIL === 'admin' || PERFIL === 'gestor') {
+    const { data: al } = await sb.from('usuarios').select('id, nome')
+      .eq('perfil', 'analista').eq('ativo', true).order('nome');
+    ANALISTAS = al || [];
+  }
+
+  buildFilterBar();
+  buildCadastroSelects();
+  await loadRescisoes();
+
+  hide('v-loading'); show('v-content');
+}
+
+// ============================================================
+// LISTA
+// ============================================================
+async function loadRescisoes() {
+  const { data, error } = await sb
+    .from('rs_rescisoes')
+    .select(`
+      id, funcionario_nome, tipo_rescisao, tipo_aviso, status, cancelada,
+      data_rescisao, prazo_pagamento, observacoes,
+      empresas!rs_rescisoes_empresa_id_fkey ( codigo, razao_social ),
+      usuarios!rs_rescisoes_analista_id_fkey ( nome )
+    `)
+    .order('prazo_pagamento', { ascending: true });
+
+  if (error) { toast('Erro ao carregar rescisões: ' + error.message, 'err'); return; }
+  RESCISOES = data || [];
+  renderLista();
+}
+
+function buildFilterBar() {
+  const opts = [['todas', 'Todas'], ...STATUS_ORDER.map(s => [s, STATUS_LABEL[s]])];
+  eid('filter-bar').innerHTML = opts.map(([v, l]) =>
+    `<button class="fbtn ${F_STATUS === v ? 'on' : ''}" onclick="setFiltro('${v}')">${l}</button>`
+  ).join('');
+}
+
+function setFiltro(v) { F_STATUS = v; buildFilterBar(); renderLista(); }
+
+function toggleCanceladas() {
+  SHOW_CANCELADAS = !SHOW_CANCELADAS;
+  eid('btn-toggle-canceladas').classList.toggle('on', SHOW_CANCELADAS);
+  renderLista();
+}
+
+function renderLista() {
+  const busca = (eid('busca').value || '').toLowerCase().trim();
+  const hoje = new Date().toISOString().slice(0, 10);
+
+  let rows = RESCISOES.filter(r => F_STATUS === 'todas' || r.status === F_STATUS);
+  if (!SHOW_CANCELADAS) rows = rows.filter(r => !r.cancelada);
+  if (busca) {
+    rows = rows.filter(r =>
+      (r.funcionario_nome || '').toLowerCase().includes(busca) ||
+      (r.empresas?.razao_social || '').toLowerCase().includes(busca) ||
+      String(r.empresas?.codigo || '').includes(busca)
+    );
+  }
+
+  if (!rows.length) {
+    eid('lista').innerHTML = `<div class="empty"><h3>Nenhuma rescisão encontrada</h3>
+      <p>Ajuste os filtros ou cadastre uma nova rescisão.</p></div>`;
+    return;
+  }
+
+  eid('lista').innerHTML = rows.map(r => {
+    const atrasada = !r.cancelada && r.status !== 'finalizada' && r.prazo_pagamento < hoje;
+    return `
+      <div class="rs-card ${atrasada ? 'atrasada' : ''} ${r.cancelada ? 'cancelada' : ''}" onclick="openDetalhe('${r.id}')">
+        <div class="rs-main">
+          <div class="rs-nome">${escHtml(r.funcionario_nome)}</div>
+          <div class="rs-sub">${escHtml(r.empresas?.codigo ?? '—')} · ${escHtml(r.empresas?.razao_social ?? 'Empresa não encontrada')} · ${TIPO_RESCISAO_LABEL[r.tipo_rescisao] || r.tipo_rescisao}</div>
+        </div>
+        <div class="rs-meta">
+          <div class="rs-meta-item">Responsável<br><b>${escHtml(r.usuarios?.nome ?? '—')}</b></div>
+          <div class="rs-meta-item">Prazo<br><b class="${atrasada ? 'rs-prazo atrasada' : ''}">${fmtDate(r.prazo_pagamento)}</b></div>
+          ${r.cancelada ? `<span class="badge badge-cancelada">Cancelada</span>` : ''}
+          <span class="badge st-${r.status}">${STATUS_LABEL[r.status] || r.status}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ============================================================
+// CADASTRO — Nova rescisão
+// ============================================================
+function buildCadastroSelects() {
+  eid('cad-tipo-rescisao').innerHTML = Object.entries(TIPO_RESCISAO_LABEL)
+    .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  eid('cad-tipo-aviso').innerHTML = Object.entries(TIPO_AVISO_LABEL)
+    .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+
+  // Responsável: analista abre só para si mesmo (mesma regra da RPC
+  // abrir_rescisao — exibir como dropdown editável seria enganoso).
+  if (PERFIL === 'analista') {
+    eid('cad-responsavel-wrap').innerHTML = `
+      <label>Responsável</label>
+      <input type="text" value="${escAttr(NOME)} (você)" disabled>`;
+  } else {
+    eid('cad-analista').innerHTML = ANALISTAS
+      .map(a => `<option value="${a.id}">${escHtml(a.nome)}</option>`).join('');
+  }
+}
+
+function openCadastro() {
+  eid('cad-empresa-codigo').value = '';
+  eid('cad-empresa-status').innerHTML = '';
+  eid('cad-nome').value = '';
+  eid('cad-data-rescisao').value = '';
+  eid('cad-data-solicitacao').value = new Date().toISOString().slice(0, 10);
+  eid('cad-data-recebimento').value = '';
+  eid('cad-obs').value = '';
+  CAD_EMPRESA = null;
+  eid('modal-cad').classList.add('show');
+}
+function closeCadastro() { eid('modal-cad').classList.remove('show'); }
+
+let _empresaDebounce;
+function onEmpresaCodigoInput() {
+  clearTimeout(_empresaDebounce);
+  CAD_EMPRESA = null;
+  const v = eid('cad-empresa-codigo').value.trim();
+  if (!v) { eid('cad-empresa-status').innerHTML = ''; return; }
+  _empresaDebounce = setTimeout(() => buscarEmpresa(v), 350);
+}
+
+async function buscarEmpresa(codigo) {
+  const cod = parseInt(codigo, 10);
+  if (isNaN(cod)) {
+    eid('cad-empresa-status').innerHTML = `<div class="emp-err">Código deve ser numérico.</div>`;
+    return;
+  }
+  const { data, error } = await sb
+    .from('empresas').select('id, codigo, razao_social')
+    .eq('codigo', cod).maybeSingle();
+
+  if (error || !data) {
+    // RLS filtra empresas fora da carteira do analista — do ponto de
+    // vista da UI, "não encontrada" cobre os dois casos (não existe
+    // ou está fora da carteira). A RPC abrir_rescisao dá a mensagem
+    // específica se, ainda assim, a submissão for tentada.
+    eid('cad-empresa-status').innerHTML = `<div class="emp-err">Empresa não encontrada ou fora da sua carteira.</div>`;
+    return;
+  }
+  CAD_EMPRESA = data;
+  eid('cad-empresa-status').innerHTML = `<div class="emp-found">✓ ${escHtml(data.razao_social)}</div>`;
+}
+
+async function submitCadastro() {
+  if (!CAD_EMPRESA) return toast('Localize uma empresa válida antes de continuar.', 'err');
+
+  const nome = eid('cad-nome').value.trim();
+  if (!nome) return toast('Informe o nome do funcionário.', 'err');
+
+  const dataRescisao = eid('cad-data-rescisao').value;
+  if (!dataRescisao) return toast('Informe a data da rescisão.', 'err');
+
+  const analistaId = PERFIL === 'analista' ? ME.id : eid('cad-analista').value;
+  if (!analistaId) return toast('Selecione o responsável.', 'err');
+
+  const btn = eid('cad-btn-salvar');
+  btn.disabled = true; btn.textContent = 'Salvando…';
+
+  const { error } = await sb.rpc('abrir_rescisao', {
+    p_empresa_id: CAD_EMPRESA.id,
+    p_analista_id: analistaId,
+    p_funcionario_nome: nome,
+    p_tipo_rescisao: eid('cad-tipo-rescisao').value,
+    p_tipo_aviso: eid('cad-tipo-aviso').value,
+    p_data_rescisao: dataRescisao,
+    p_data_solicitacao: eid('cad-data-solicitacao').value || null,
+    p_data_recebimento_apontamentos: eid('cad-data-recebimento').value || null,
+    p_observacoes: eid('cad-obs').value.trim() || null
+  });
+
+  btn.disabled = false; btn.textContent = 'Abrir rescisão';
+
+  if (error) return toast('Erro ao abrir rescisão: ' + error.message, 'err');
+
+  toast('Rescisão cadastrada com sucesso.', 'ok');
+  closeCadastro();
+  await loadRescisoes();
+}
+
+// ============================================================
+// DETALHE — visualizar, editar, checklist, pipeline, histórico
+// ============================================================
+async function openDetalhe(id) {
+  DET_RESCISAO_ID = id;
+  eid('det-body').innerHTML = `<div class="loading"><div class="spinner"></div> Carregando…</div>`;
+  eid('modal-det').classList.add('show');
+  await renderDetalhe();
+}
+function closeDetalhe() { eid('modal-det').classList.remove('show'); DET_RESCISAO_ID = null; }
+
+async function renderDetalhe() {
+  const id = DET_RESCISAO_ID;
+  const [{ data: r, error: e1 }, { data: tarefas, error: e2 }, { data: hist, error: e3 }] = await Promise.all([
+    sb.from('rs_rescisoes').select(`
+      id, funcionario_nome, tipo_rescisao, tipo_aviso, status, observacoes,
+      data_solicitacao, data_recebimento_apontamentos, data_rescisao, prazo_pagamento,
+      analista_id, cancelada, motivo_cancelamento, cancelada_em,
+      empresas!rs_rescisoes_empresa_id_fkey ( codigo, razao_social ),
+      responsavel:usuarios!rs_rescisoes_analista_id_fkey ( nome ),
+      cancelador:usuarios!rs_rescisoes_cancelada_por_fkey ( nome )
+    `).eq('id', id).single(),
+    sb.from('rs_tarefas').select('id, tipo_tarefa, ordem, concluida, concluida_em, observacao, usuarios(nome)')
+      .eq('rescisao_id', id).order('ordem'),
+    sb.from('rs_historico').select('status_anterior, status_novo, observacao, created_at, usuarios(nome)')
+      .eq('rescisao_id', id).order('created_at', { ascending: false })
+  ]);
+
+  if (e1 || !r) { eid('det-body').innerHTML = `<p>Erro ao carregar rescisão.</p>`; return; }
+
+  const podeAgir = PERFIL !== 'analista' || r.analista_id === ME.id;
+  const podeExcluir = PERFIL === 'admin';
+  const outrosStatus = STATUS_ORDER.filter(s => s !== r.status);
+
+  eid('det-body').innerHTML = `
+    <h3>${escHtml(r.funcionario_nome)}</h3>
+    <p class="sub">${escHtml(r.empresas?.codigo ?? '—')} · ${escHtml(r.empresas?.razao_social ?? '—')} · Responsável: ${escHtml(r.responsavel?.nome ?? '—')}</p>
+
+    ${r.cancelada ? `
+      <div class="cancel-banner">
+        <b>Rescisão cancelada</b>
+        Em ${fmtDateTime(r.cancelada_em)} por ${escHtml(r.cancelador?.nome ?? '—')}.<br>
+        Motivo: ${escHtml(r.motivo_cancelamento)}
+        ${podeAgir ? `<div style="margin-top:8px"><button class="btn btn-xs btn-secondary" onclick="reabrirRescisao()">Reabrir rescisão</button></div>` : ''}
+      </div>
+    ` : `
+      <div class="status-changer">
+        <span class="badge st-${r.status}">${STATUS_LABEL[r.status]}</span>
+        ${podeAgir ? `
+          <select id="det-novo-status">
+            ${outrosStatus.map(s => `<option value="${s}">${STATUS_LABEL[s]}</option>`).join('')}
+          </select>
+          <button class="btn btn-xs btn-primary" onclick="mudarStatus()">Mudar status</button>
+        ` : ''}
+      </div>
+      ${podeAgir ? `<textarea id="det-status-obs" placeholder="Observação da mudança de status (opcional)" style="margin-bottom:14px"></textarea>` : ''}
+    `}
+
+    <div class="det-section">
+      <h4>Dados cadastrais</h4>
+      <div class="frow2">
+        <div class="field"><label>Tipo de rescisão</label>
+          <select id="det-tipo-rescisao">${Object.entries(TIPO_RESCISAO_LABEL)
+            .map(([v, l]) => `<option value="${v}" ${v === r.tipo_rescisao ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="field"><label>Aviso prévio</label>
+          <select id="det-tipo-aviso">${Object.entries(TIPO_AVISO_LABEL)
+            .map(([v, l]) => `<option value="${v}" ${v === r.tipo_aviso ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      </div>
+      <div class="frow2">
+        <div class="field"><label>Data da rescisão</label>
+          <input type="date" id="det-data-rescisao" value="${r.data_rescisao || ''}"></div>
+        <div class="field"><label>Prazo de pagamento</label>
+          <input type="date" id="det-prazo" value="${r.prazo_pagamento || ''}"></div>
+      </div>
+      <div class="frow2">
+        <div class="field"><label>Data da solicitação</label>
+          <input type="date" id="det-data-solicitacao" value="${r.data_solicitacao || ''}"></div>
+        <div class="field"><label>Recebimento dos apontamentos</label>
+          <input type="date" id="det-data-recebimento" value="${r.data_recebimento_apontamentos || ''}"></div>
+      </div>
+      <div class="field"><label>Observações</label>
+        <textarea id="det-obs">${escHtml(r.observacoes || '')}</textarea></div>
+      <button class="btn btn-xs btn-secondary" onclick="salvarEdicao()">Salvar alterações</button>
+    </div>
+
+    <div class="det-section">
+      <h4>Checklist</h4>
+      ${(tarefas || []).map(t => `
+        <div class="check-item">
+          <input type="checkbox" ${t.concluida ? 'checked' : ''}
+                 onchange="toggleTarefa('${t.id}', this.checked)">
+          <div class="check-body">
+            <div class="check-label ${t.concluida ? 'done' : ''}">${TIPO_TAREFA_LABEL[t.tipo_tarefa] || t.tipo_tarefa}</div>
+            ${t.concluida ? `<div class="check-meta">Concluída por ${escHtml(t.usuarios?.nome ?? '—')} em ${fmtDateTime(t.concluida_em)}</div>` : ''}
+          </div>
+        </div>
+      `).join('') || '<p class="hint">Nenhuma tarefa gerada.</p>'}
+    </div>
+
+    <div class="det-section">
+      <h4>Histórico</h4>
+      ${(hist || []).map(h => `
+        <div class="timeline-item">
+          <div class="tl-status">${h.status_anterior ? STATUS_LABEL[h.status_anterior] + ' → ' : ''}${STATUS_LABEL[h.status_novo]}</div>
+          <div class="tl-meta">${escHtml(h.usuarios?.nome ?? '—')} · ${fmtDateTime(h.created_at)}</div>
+          ${h.observacao ? `<div class="tl-obs">${escHtml(h.observacao)}</div>` : ''}
+        </div>
+      `).join('') || '<p class="hint">Sem movimentações.</p>'}
+    </div>
+
+    ${(podeAgir && !r.cancelada) || podeExcluir ? `
+      <div class="danger-zone">
+        <h4 style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:10px">Zona de risco</h4>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${(podeAgir && !r.cancelada) ? `<button class="btn btn-xs btn-danger" onclick="cancelarRescisao()">Cancelar rescisão</button>` : ''}
+          ${podeExcluir ? `<button class="btn btn-xs btn-danger" onclick="excluirRescisao()">Excluir definitivamente</button>` : ''}
+        </div>
+      </div>
+    ` : ''}
+  `;
+}
+
+async function salvarEdicao() {
+  const id = DET_RESCISAO_ID;
+  const payload = {
+    tipo_rescisao: eid('det-tipo-rescisao').value,
+    tipo_aviso: eid('det-tipo-aviso').value,
+    data_rescisao: eid('det-data-rescisao').value || null,
+    prazo_pagamento: eid('det-prazo').value || null,
+    data_solicitacao: eid('det-data-solicitacao').value || null,
+    data_recebimento_apontamentos: eid('det-data-recebimento').value || null,
+    observacoes: eid('det-obs').value.trim() || null
+  };
+  const { error } = await sb.from('rs_rescisoes').update(payload).eq('id', id);
+  if (error) return toast('Erro ao salvar: ' + error.message, 'err');
+  toast('Dados atualizados.', 'ok');
+  await loadRescisoes();
+}
+
+async function toggleTarefa(tarefaId, concluida) {
+  const { error } = await sb.rpc('concluir_tarefa_rescisao', {
+    p_tarefa_id: tarefaId, p_concluida: concluida
+  });
+  if (error) { toast('Erro ao atualizar tarefa: ' + error.message, 'err'); await renderDetalhe(); return; }
+  await renderDetalhe();
+}
+
+async function mudarStatus() {
+  const novoStatus = eid('det-novo-status')?.value;
+  if (!novoStatus) return toast('Selecione o status de destino.', 'err');
+  const obs = eid('det-status-obs')?.value.trim() || null;
+
+  const { error } = await sb.rpc('atualizar_status_rescisao', {
+    p_rescisao_id: DET_RESCISAO_ID, p_status_novo: novoStatus, p_observacao: obs
+  });
+  if (error) return toast('Erro ao mudar status: ' + error.message, 'err');
+  toast('Status atualizado.', 'ok');
+  await renderDetalhe();
+  await loadRescisoes();
+}
+
+async function cancelarRescisao() {
+  const motivo = prompt('Motivo do cancelamento (obrigatório):');
+  if (motivo === null) return; // usuário cancelou o prompt
+  if (!motivo.trim()) return toast('Informe o motivo do cancelamento.', 'err');
+
+  const { error } = await sb.rpc('cancelar_rescisao', {
+    p_rescisao_id: DET_RESCISAO_ID, p_motivo: motivo.trim()
+  });
+  if (error) return toast('Erro ao cancelar: ' + error.message, 'err');
+  toast('Rescisão cancelada.', 'ok');
+  await renderDetalhe();
+  await loadRescisoes();
+}
+
+async function reabrirRescisao() {
+  if (!confirm('Reabrir esta rescisão? Ela volta a ficar ativa no status em que estava.')) return;
+
+  const { error } = await sb.rpc('reabrir_rescisao', { p_rescisao_id: DET_RESCISAO_ID });
+  if (error) return toast('Erro ao reabrir: ' + error.message, 'err');
+  toast('Rescisão reaberta.', 'ok');
+  await renderDetalhe();
+  await loadRescisoes();
+}
+
+async function excluirRescisao() {
+  if (!confirm('Excluir esta rescisão PERMANENTEMENTE? Isso remove o cadastro, o checklist e o histórico. Não é possível desfazer.')) return;
+  if (!confirm('Tem certeza mesmo? Essa ação não pode ser revertida.')) return;
+
+  const { error } = await sb.from('rs_rescisoes').delete().eq('id', DET_RESCISAO_ID);
+  if (error) return toast('Erro ao excluir: ' + error.message, 'err');
+  toast('Rescisão excluída.', 'ok');
+  closeDetalhe();
+  await loadRescisoes();
+}
+
+// ============================================================
+// AUTH / HELPERS
+// ============================================================
+async function doLogout() { await sb.auth.signOut(); }
+
+function eid(id) { return document.getElementById(id) }
+function show(id) { const el = eid(id); el.classList.remove('hidden'); el.style.removeProperty('display') }
+function hide(id) { const el = eid(id); el.classList.add('hidden'); el.style.display = 'none' }
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y, m, dd] = d.split('-');
+  return `${dd}/${m}/${y}`;
+}
+function fmtDateTime(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) { return String(s ?? '').replace(/"/g,'&quot;').replace(/'/g,'&#39;') }
+
+let _toastT;
+function toast(msg, type = 'inf') {
+  const el = eid('toast');
+  el.textContent = msg; el.className = type; show('toast');
+  clearTimeout(_toastT);
+  _toastT = setTimeout(() => hide('toast'), 3500);
+}
+
+// Fecha modais ao clicar fora
+eid('modal-cad').addEventListener('click', e => { if (e.target === eid('modal-cad')) closeCadastro(); });
+eid('modal-det').addEventListener('click', e => { if (e.target === eid('modal-det')) closeDetalhe(); });
+</script>
+</body>
+</html>
