@@ -104,12 +104,19 @@ header {
   border-radius:var(--radius); padding:6px 12px; font-size:12px; cursor:pointer; transition:background .15s;
 }
 .btn-sair:hover { background:rgba(255,255,255,.2) }
+.btn-manual {
+  background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); color:rgba(255,255,255,.85);
+  border-radius:var(--radius); padding:6px 12px; font-size:12px; cursor:pointer; transition:background .15s;
+  display:inline-flex; align-items:center; gap:5px;
+}
+.btn-manual:hover { background:rgba(255,255,255,.2) }
 
 main { max-width: 980px; margin: 0 auto; padding: 20px }
 
 /* === FILTER BAR === */
+.toolbar-status { display:flex; margin-bottom:10px }
 .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px }
-.filter-bar { display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex:1 }
+.filter-bar { display:flex; gap:6px; flex-wrap:wrap; align-items:center }
 .fbtn {
   padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600; cursor:pointer;
   border:1.5px solid var(--gray-200); background:var(--white); color:var(--gray-500); transition:all .12s;
@@ -127,6 +134,16 @@ main { max-width: 980px; margin: 0 auto; padding: 20px }
   white-space:nowrap;
 }
 .fbtn-cancel-toggle.on { background:var(--red-bg); border-color:var(--red); color:var(--red) }
+.fbtn-prazo-toggle {
+  padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600; cursor:pointer;
+  border:1.5px solid var(--amber-bg); background:var(--white); color:var(--gray-400); transition:all .12s;
+  white-space:nowrap;
+}
+.fbtn-prazo-toggle.on { background:var(--amber-bg); border-color:var(--amber); color:var(--amber) }
+.filtro-analista {
+  width:auto; min-width:160px; max-width:200px; padding:5px 10px; font-size:11.5px;
+  border-radius:20px; border:1.5px solid var(--gray-200); color:var(--gray-700);
+}
 
 /* === LISTA === */
 .rs-card.cancelada { opacity:.7; border-style:dashed }
@@ -236,6 +253,7 @@ main { max-width: 980px; margin: 0 auto; padding: 20px }
   </div>
   <div class="hd-r">
     <span class="hd-user" id="hd-user"></span>
+    <button class="btn-manual" onclick="window.open('/manual_rescisoes_dp+.html','_blank')" title="Abrir manual do módulo de Rescisões">📖 Manual</button>
     <button class="btn-sair" onclick="doLogout()">Sair</button>
   </div>
 </header>
@@ -244,8 +262,12 @@ main { max-width: 980px; margin: 0 auto; padding: 20px }
   <div id="v-loading" class="loading"><div class="spinner"></div> Carregando…</div>
 
   <div id="v-content" class="hidden">
-    <div class="toolbar">
+    <div class="toolbar-status">
       <div class="filter-bar" id="filter-bar"></div>
+    </div>
+    <div class="toolbar">
+      <select class="filtro-analista hidden" id="filtro-analista" onchange="setFiltroAnalista(this.value)"></select>
+      <button class="fbtn-prazo-toggle" id="btn-toggle-prazo5d" onclick="togglePrazo5d()" title="Rescisões não finalizadas com prazo de pagamento nos próximos 5 dias">📅 Vencendo em 5 dias</button>
       <button class="fbtn-cancel-toggle" id="btn-toggle-canceladas" onclick="toggleCanceladas()">Mostrar canceladas</button>
       <div class="rs-search">
         <input type="text" id="busca" placeholder="Buscar funcionário ou empresa…" oninput="renderLista()">
@@ -280,7 +302,7 @@ main { max-width: 980px; margin: 0 auto; padding: 20px }
 
     <div class="field">
       <label>Nome do funcionário</label>
-      <input type="text" id="cad-nome">
+      <input type="text" id="cad-nome" oninput="toUpper(this)">
     </div>
 
     <div class="frow2">
@@ -313,7 +335,7 @@ main { max-width: 980px; margin: 0 auto; padding: 20px }
 
     <div class="field">
       <label>Observações</label>
-      <textarea id="cad-obs"></textarea>
+      <textarea id="cad-obs" oninput="toUpper(this)"></textarea>
     </div>
 
     <div class="mactions">
@@ -400,6 +422,8 @@ let ANALISTAS = [];
 let RESCISOES = [];
 let F_STATUS = 'todas';
 let SHOW_CANCELADAS = false;
+let F_ANALISTA = 'todos';   // id do analista selecionado, só usado por admin/gestor
+let F_PRAZO5D = false;      // toggle: não finalizadas com prazo nos próximos 5 dias
 let CAD_EMPRESA = null;      // { id, codigo, razao_social } encontrada no cadastro
 let DET_RESCISAO_ID = null;  // id da rescisão aberta no modal de detalhe
 
@@ -434,6 +458,7 @@ async function boot() {
   }
 
   buildFilterBar();
+  buildFiltroAnalista();
   buildCadastroSelects();
   await loadRescisoes();
 
@@ -447,7 +472,7 @@ async function loadRescisoes() {
   const { data, error } = await sb
     .from('rs_rescisoes')
     .select(`
-      id, funcionario_nome, tipo_rescisao, tipo_aviso, status, cancelada,
+      id, funcionario_nome, tipo_rescisao, tipo_aviso, status, cancelada, analista_id,
       data_rescisao, prazo_pagamento, observacoes,
       empresas!rs_rescisoes_empresa_id_fkey ( codigo, razao_social ),
       usuarios!rs_rescisoes_analista_id_fkey ( nome )
@@ -468,9 +493,31 @@ function buildFilterBar() {
 
 function setFiltro(v) { F_STATUS = v; buildFilterBar(); renderLista(); }
 
+// Filtro por analista — só admin e gestor têm visão de carteira completa
+// (mesmo escopo de ANALISTAS já carregado no boot()). Analista não vê
+// este select porque só enxerga as próprias rescisões via RLS.
+function buildFiltroAnalista() {
+  const sel = eid('filtro-analista');
+  if (PERFIL !== 'admin' && PERFIL !== 'gestor') { sel.classList.add('hidden'); return; }
+  sel.innerHTML = `<option value="todos">Todos os analistas</option>` +
+    ANALISTAS.map(a => `<option value="${a.id}">${escHtml(a.nome)}</option>`).join('');
+  sel.classList.remove('hidden');
+}
+
+function setFiltroAnalista(v) { F_ANALISTA = v; renderLista(); }
+
 function toggleCanceladas() {
   SHOW_CANCELADAS = !SHOW_CANCELADAS;
   eid('btn-toggle-canceladas').classList.toggle('on', SHOW_CANCELADAS);
+  renderLista();
+}
+
+// Filtro rápido: rescisões não finalizadas, não canceladas, com prazo
+// de pagamento entre hoje e os próximos 5 dias (inclusive). Não inclui
+// prazos já vencidos — esses já são sinalizados pela borda "atrasada".
+function togglePrazo5d() {
+  F_PRAZO5D = !F_PRAZO5D;
+  eid('btn-toggle-prazo5d').classList.toggle('on', F_PRAZO5D);
   renderLista();
 }
 
@@ -480,6 +527,18 @@ function renderLista() {
 
   let rows = RESCISOES.filter(r => F_STATUS === 'todas' || r.status === F_STATUS);
   if (!SHOW_CANCELADAS) rows = rows.filter(r => !r.cancelada);
+  if ((PERFIL === 'admin' || PERFIL === 'gestor') && F_ANALISTA !== 'todos') {
+    rows = rows.filter(r => r.analista_id === F_ANALISTA);
+  }
+  if (F_PRAZO5D) {
+    const limite = new Date();
+    limite.setDate(limite.getDate() + 5);
+    const limiteStr = limite.toISOString().slice(0, 10);
+    rows = rows.filter(r =>
+      !r.cancelada && r.status !== 'finalizada' &&
+      r.prazo_pagamento && r.prazo_pagamento >= hoje && r.prazo_pagamento <= limiteStr
+    );
+  }
   if (busca) {
     rows = rows.filter(r =>
       (r.funcionario_nome || '').toLowerCase().includes(busca) ||
@@ -580,7 +639,7 @@ async function buscarEmpresa(codigo) {
 async function submitCadastro() {
   if (!CAD_EMPRESA) return toast('Localize uma empresa válida antes de continuar.', 'err');
 
-  const nome = eid('cad-nome').value.trim();
+  const nome = eid('cad-nome').value.trim().toUpperCase();
   if (!nome) return toast('Informe o nome do funcionário.', 'err');
 
   const dataRescisao = eid('cad-data-rescisao').value;
@@ -601,7 +660,7 @@ async function submitCadastro() {
     p_data_rescisao: dataRescisao,
     p_data_solicitacao: eid('cad-data-solicitacao').value || null,
     p_data_recebimento_apontamentos: eid('cad-data-recebimento').value || null,
-    p_observacoes: eid('cad-obs').value.trim() || null
+    p_observacoes: eid('cad-obs').value.trim().toUpperCase() || null
   });
 
   btn.disabled = false; btn.textContent = 'Abrir rescisão';
@@ -668,7 +727,7 @@ async function renderDetalhe() {
           <button class="btn btn-xs btn-primary" onclick="mudarStatus()">Mudar status</button>
         ` : ''}
       </div>
-      ${podeAgir ? `<textarea id="det-status-obs" placeholder="Observação da mudança de status (opcional)" style="margin-bottom:14px"></textarea>` : ''}
+      ${podeAgir ? `<textarea id="det-status-obs" placeholder="Observação da mudança de status (opcional)" style="margin-bottom:14px" oninput="toUpper(this)"></textarea>` : ''}
     `}
 
     <div class="det-section">
@@ -694,7 +753,7 @@ async function renderDetalhe() {
           <input type="date" id="det-data-recebimento" value="${r.data_recebimento_apontamentos || ''}"></div>
       </div>
       <div class="field"><label>Observações</label>
-        <textarea id="det-obs">${escHtml(r.observacoes || '')}</textarea></div>
+        <textarea id="det-obs" oninput="toUpper(this)">${escHtml(r.observacoes || '')}</textarea></div>
       <button class="btn btn-xs btn-secondary" onclick="salvarEdicao()">Salvar alterações</button>
     </div>
 
@@ -744,7 +803,7 @@ async function salvarEdicao() {
     prazo_pagamento: eid('det-prazo').value || null,
     data_solicitacao: eid('det-data-solicitacao').value || null,
     data_recebimento_apontamentos: eid('det-data-recebimento').value || null,
-    observacoes: eid('det-obs').value.trim() || null
+    observacoes: eid('det-obs').value.trim().toUpperCase() || null
   };
   const { error } = await sb.from('rs_rescisoes').update(payload).eq('id', id);
   if (error) return toast('Erro ao salvar: ' + error.message, 'err');
@@ -763,7 +822,7 @@ async function toggleTarefa(tarefaId, concluida) {
 async function mudarStatus() {
   const novoStatus = eid('det-novo-status')?.value;
   if (!novoStatus) return toast('Selecione o status de destino.', 'err');
-  const obs = eid('det-status-obs')?.value.trim() || null;
+  const obs = eid('det-status-obs')?.value.trim().toUpperCase() || null;
 
   const { error } = await sb.rpc('atualizar_status_rescisao', {
     p_rescisao_id: DET_RESCISAO_ID, p_status_novo: novoStatus, p_observacao: obs
@@ -780,7 +839,7 @@ async function cancelarRescisao() {
   if (!motivo.trim()) return toast('Informe o motivo do cancelamento.', 'err');
 
   const { error } = await sb.rpc('cancelar_rescisao', {
-    p_rescisao_id: DET_RESCISAO_ID, p_motivo: motivo.trim()
+    p_rescisao_id: DET_RESCISAO_ID, p_motivo: motivo.trim().toUpperCase()
   });
   if (error) return toast('Erro ao cancelar: ' + error.message, 'err');
   toast('Rescisão cancelada.', 'ok');
@@ -817,6 +876,18 @@ async function doLogout() { await sb.auth.signOut(); }
 function eid(id) { return document.getElementById(id) }
 function show(id) { const el = eid(id); el.classList.remove('hidden'); el.style.removeProperty('display') }
 function hide(id) { const el = eid(id); el.classList.add('hidden'); el.style.display = 'none' }
+
+// Converte o valor do campo para maiúsculas em tempo real, preservando a
+// posição do cursor (sem isso, o cursor pularia para o fim do texto a
+// cada tecla digitada, atrapalhando edição no meio da frase). Aplicado
+// nos campos de texto livre (nome do funcionário, observações, motivo
+// de cancelamento) por padrão de digitação — não altera código de
+// empresa nem outros campos numéricos/estruturados.
+function toUpper(el) {
+  const start = el.selectionStart, end = el.selectionEnd;
+  el.value = el.value.toUpperCase();
+  if (start !== null && end !== null) el.setSelectionRange(start, end);
+}
 
 function fmtDate(d) {
   if (!d) return '—';

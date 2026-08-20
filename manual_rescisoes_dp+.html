@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DP+ · Manual — Módulo Rescisões</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+
+  :root {
+    --teal:      #0d7377;
+    --teal-d:    #0a5d61;
+    --teal-bg:   #e6f4f4;
+    --navy:      #111827;
+    --gray-50:   #f9fafb;
+    --gray-100:  #f3f4f6;
+    --gray-200:  #e5e7eb;
+    --gray-400:  #9ca3af;
+    --gray-500:  #6b7280;
+    --gray-700:  #374151;
+    --green:     #16a34a;
+    --green-bg:  #dcfce7;
+    --amber:     #d97706;
+    --amber-bg:  #fef3c7;
+    --red:       #dc2626;
+    --red-bg:    #fee2e2;
+    --blue:      #2563eb;
+    --blue-bg:   #dbeafe;
+    --purple:    #7c3aed;
+    --purple-bg: #ede9fe;
+  }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    background: var(--gray-100);
+    color: var(--navy);
+    line-height: 1.6;
+  }
+
+  /* ── CAPA ── */
+  .cover {
+    background: var(--navy);
+    color: white;
+    padding: 48px 40px 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::after {
+    content: '';
+    position: absolute;
+    right: -60px; top: -60px;
+    width: 300px; height: 300px;
+    border-radius: 50%;
+    background: rgba(13,115,119,.25);
+  }
+  .cover-brand {
+    font-size: 28px; font-weight: 800; letter-spacing: -1px;
+    margin-bottom: 6px;
+  }
+  .cover-brand span { color: #22d3ee }
+  .cover-subtitle {
+    font-size: 13px; color: rgba(255,255,255,.55); font-weight: 500;
+    text-transform: uppercase; letter-spacing: .08em; margin-bottom: 28px;
+  }
+  .cover-title {
+    font-size: 22px; font-weight: 700; line-height: 1.3; margin-bottom: 8px;
+  }
+  .cover-desc {
+    font-size: 13px; color: rgba(255,255,255,.65); max-width: 520px;
+  }
+  .cover-meta {
+    margin-top: 32px; padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,.1);
+    font-size: 12px; color: rgba(255,255,255,.4);
+    display: flex; gap: 24px;
+  }
+
+  /* ── LAYOUT ── */
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+  }
+
+  /* ── SEÇÕES ── */
+  .section {
+    background: white;
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 20px;
+    border: 1px solid var(--gray-200);
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--gray-100);
+  }
+
+  .section-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; flex-shrink: 0;
+  }
+
+  .section-title {
+    font-size: 16px; font-weight: 700; color: var(--navy);
+  }
+  .section-num {
+    font-size: 11px; font-weight: 600; color: var(--gray-400);
+    text-transform: uppercase; letter-spacing: .06em;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* ── ALERTA ── */
+  .alert {
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    display: flex;
+    gap: 10px;
+  }
+  .alert-icon { flex-shrink: 0; font-size: 16px; margin-top: 1px }
+  .alert p { margin-bottom: 6px }
+  .alert p:last-child { margin-bottom: 0 }
+  .alert-warn { background: var(--amber-bg); border-left: 3px solid var(--amber) }
+  .alert-info { background: var(--blue-bg); border-left: 3px solid var(--blue) }
+  .alert-tip  { background: var(--teal-bg); border-left: 3px solid var(--teal) }
+
+  /* ── CAMPOS ── */
+  .fields-grid {
+    display: grid;
+    gap: 12px;
+  }
+  .field-row {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--gray-200);
+    align-items: start;
+  }
+  .field-row.required { border-left: 3px solid var(--teal) }
+  .field-row.optional { border-left: 3px solid var(--gray-200) }
+  .field-label {
+    font-weight: 600; font-size: 12px; color: var(--navy);
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .field-label .badge-req {
+    display: inline-block;
+    font-size: 9px; font-weight: 700;
+    background: var(--teal); color: white;
+    padding: 1px 5px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: .04em;
+    width: fit-content;
+  }
+  .field-label .badge-opt {
+    display: inline-block;
+    font-size: 9px; font-weight: 700;
+    background: var(--gray-200); color: var(--gray-500);
+    padding: 1px 5px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: .04em;
+    width: fit-content;
+  }
+  .field-desc { font-size: 13px; color: var(--gray-700); line-height: 1.55 }
+  .field-desc strong { color: var(--navy) }
+  .field-desc .example {
+    display: inline-block;
+    margin-top: 5px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    background: var(--gray-100);
+    padding: 2px 7px;
+    border-radius: 4px;
+    color: var(--teal-d);
+  }
+
+  /* ── PIPELINE STATUS ── */
+  .pipeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .status-card {
+    display: grid;
+    grid-template-columns: 32px 140px 1fr;
+    gap: 16px;
+    align-items: start;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .status-card:last-child { border-bottom: none }
+  .status-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--navy);
+    color: white;
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .badge-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: .02em;
+    width: fit-content;
+    margin-top: 2px;
+  }
+  .st-solicitada       { background: var(--gray-100);  color: var(--gray-700) }
+  .st-em_calculo       { background: var(--blue-bg);   color: var(--blue) }
+  .st-em_conferencia   { background: var(--purple-bg); color: var(--purple) }
+  .st-aguardando_cliente { background: var(--amber-bg); color: var(--amber) }
+  .st-aprovada         { background: var(--teal-bg);   color: var(--teal-d) }
+  .st-finalizada       { background: var(--green-bg);  color: var(--green) }
+
+  .status-body { }
+  .status-title { font-weight: 700; font-size: 13px; margin-bottom: 4px }
+  .status-desc  { font-size: 13px; color: var(--gray-700); line-height: 1.55 }
+  .status-action {
+    margin-top: 6px;
+    font-size: 12px; font-weight: 600;
+    color: var(--teal-d);
+    background: var(--teal-bg);
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  /* ── CHECKLIST TABLE ── */
+  .ck-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px }
+  .ck-table th {
+    text-align: left; padding: 8px 10px;
+    background: var(--gray-50); color: var(--gray-500);
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+    border-bottom: 2px solid var(--gray-200);
+  }
+  .ck-table td { padding: 9px 10px; border-bottom: 1px solid var(--gray-100); color: var(--gray-700) }
+  .ck-table tr:last-child td { border-bottom: none }
+  .ck-table td:first-child { font-weight: 600; color: var(--navy); width: 220px }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--teal); margin-right: 4px }
+  .dot-no { background: var(--gray-300) }
+
+  /* ── REGRAS IMPORTANTES ── */
+  .rules { display: flex; flex-direction: column; gap: 10px }
+  .rule {
+    display: flex; gap: 12px; align-items: start;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    font-size: 13px;
+  }
+  .rule-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px }
+  .rule-text { color: var(--gray-700); line-height: 1.5 }
+  .rule-text strong { color: var(--navy) }
+
+  /* ── OBSERVAÇÕES ── */
+  .obs-examples { display: flex; flex-direction: column; gap: 8px; margin-top: 12px }
+  .obs-ex {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-left: 3px solid var(--teal);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px; color: var(--gray-700);
+    font-style: italic;
+  }
+  .obs-ex-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--teal); margin-bottom: 4px;
+    font-style: normal;
+  }
+
+  /* ── PRINT ── */
+  @media print {
+    body { background: white }
+    .container { padding: 0 }
+    .section { break-inside: avoid; border: 1px solid #ddd; box-shadow: none }
+    .cover { break-after: page }
+    .no-print { display: none }
+  }
+
+  /* ── RODAPÉ ── */
+  footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 12px;
+    color: var(--gray-400);
+  }
+</style>
+</head>
+<body>
+
+<!-- CAPA -->
+<div class="cover">
+  <div class="cover-brand">DP<span>+</span></div>
+  <div class="cover-subtitle">Sistema de Controle de Folha</div>
+  <div class="cover-title">Manual de Uso — Módulo Rescisões</div>
+  <div class="cover-desc">Guia prático para cadastro e acompanhamento de rescisões. Leia antes de iniciar os cadastros.</div>
+  <div class="cover-meta">
+    <span>Versão 1.0</span>
+    <span>Uso interno</span>
+    <span>Equipe de Analistas</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- SEÇÃO 1 — Acesso -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#e0f2fe">🔑</div>
+      <div>
+        <div class="section-num">Seção 01</div>
+        <div class="section-title">Como acessar o módulo</div>
+      </div>
+    </div>
+
+    <div class="rules">
+      <div class="rule">
+        <div class="rule-icon">1️⃣</div>
+        <div class="rule-text">Faça login normalmente no portal DP+ com seu e-mail e senha.</div>
+      </div>
+      <div class="rule">
+        <div class="rule-icon">2️⃣</div>
+        <div class="rule-text">
+          No menu superior, clique em <strong>Rescisões ↗</strong>. O módulo abre em uma nova aba — isso é intencional. Você pode manter o controle de folha aberto em paralelo.
+        </div>
+      </div>
+      <div class="rule">
+        <div class="rule-icon">3️⃣</div>
+        <div class="rule-text">
+          Para cadastrar uma nova rescisão, clique no botão <strong>+ Nova Rescisão</strong> no canto superior direito.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 2 — Campos do cadastro -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#dcfce7">📋</div>
+      <div>
+        <div class="section-num">Seção 02</div>
+        <div class="section-title">Preenchimento do cadastro</div>
+      </div>
+    </div>
+
+    <div class="alert alert-warn">
+      <div class="alert-icon">⚠️</div>
+      <div>
+        <p><strong>Precisão é fundamental.</strong> Os dados cadastrados aqui alimentarão relatórios gerenciais, prazos de pagamento e histórico de atendimento ao cliente. Informações incorretas geram retrabalho e risco de perder prazo legal.</p>
+      </div>
+    </div>
+
+    <div class="fields-grid">
+
+      <div class="field-row required">
+        <div class="field-label">
+          Código da empresa
+          <span class="badge-req">obrigatório</span>
+        </div>
+        <div class="field-desc">
+          Digite o <strong>código numérico</strong> da empresa (mesmo código usado no controle de folha). O sistema vai buscar e exibir a razão social automaticamente para você confirmar. Não é um campo de seleção — você digita o código e o sistema valida.
+          <br><span class="example">Ex: 1042</span>
+        </div>
+      </div>
+
+      <div class="field-row required">
+        <div class="field-label">
+          Responsável
+          <span class="badge-req">obrigatório</span>
+        </div>
+        <div class="field-desc">
+          O analista que vai conduzir o processo. Como analista, você só consegue abrir rescisões de empresas da sua carteira e só pode se atribuir a você mesmo. Gestores e admin podem atribuir a qualquer analista.
+        </div>
+      </div>
+
+      <div class="field-row required">
+        <div class="field-label">
+          Nome do funcionário
+          <span class="badge-req">obrigatório</span>
+        </div>
+        <div class="field-desc">
+          Nome completo do funcionário que está sendo desligado. <strong>Evite abreviações</strong> — este campo aparece em todos os relatórios e no histórico.
+          <br><span class="example">Ex: Maria Aparecida Santos</span>
+        </div>
+      </div>
+
+      <div class="field-row required">
+        <div class="field-label">
+          Tipo de rescisão
+          <span class="badge-req">obrigatório</span>
+        </div>
+        <div class="field-desc">
+          Define <strong>toda a estrutura do processo</strong>: o checklist de tarefas é gerado automaticamente a partir deste campo. Escolha com cuidado — não é possível alterar depois sem refazer o cadastro.
+          <br><br>
+          <strong>Sem justa causa</strong> — demissão sem motivo pelo empregador<br>
+          <strong>Pedido de demissão</strong> — iniciativa do empregado<br>
+          <strong>Justa causa</strong> — falta grave do empregado<br>
+          <strong>Acordo mútuo</strong> — rescisão consensual (art. 484-A CLT)<br>
+          <strong>Término de prazo</strong> — fim de contrato determinado<br>
+          <strong>Antecipação (empregador)</strong> — encerramento antecipado pelo empregador<br>
+          <strong>Antecipação (empregado)</strong> — encerramento antecipado pelo empregado
+        </div>
+      </div>
+
+      <div class="field-row required">
+        <div class="field-label">
+          Aviso prévio
+          <span class="badge-req">obrigatório</span>
+        </div>
+        <div class="field-desc">
+          <strong>Trabalhado</strong> — empregado cumpre o aviso na empresa<br>
+          <strong>Indenizado</strong> — empresa paga em vez de exigir cumprimento<br>
+          <strong>Descontado</strong> — empregado pediu demissão e não vai cumprir, o valor será descontado<br>
+          <strong>Não aplicável</strong> — tipos que não têm aviso (justa causa, término de prazo, antecipações)
+        </div>
+      </div>
+
+      <div class="field-row required">
+        <div class="field-label">
+          Data da rescisão
+          <span class="badge-req">obrigatório</span>
+        </div>
+        <div class="field-desc">
+          <strong>Último dia trabalhado</strong> — ou o último dia do aviso indenizado. Esta data é a base do cálculo do prazo de pagamento. <strong>Não confundir com a data de assinatura do TRCT</strong>.
+          <br><br>O sistema calcula automaticamente o prazo de pagamento (data + 9 dias úteis, com ajuste para fim de semana). Se houver feriado no período, o analista deve ajustar o prazo manualmente depois.
+        </div>
+      </div>
+
+      <div class="field-row optional">
+        <div class="field-label">
+          Data da solicitação
+          <span class="badge-opt">opcional</span>
+        </div>
+        <div class="field-desc">
+          Data em que o cliente comunicou o desligamento. Se não preenchida, assume a data de hoje. Importante para medir o tempo de atendimento nos relatórios futuros.
+        </div>
+      </div>
+
+      <div class="field-row optional">
+        <div class="field-label">
+          Recebimento dos apontamentos
+          <span class="badge-opt">opcional</span>
+        </div>
+        <div class="field-desc">
+          Data em que o escritório recebeu do cliente a documentação necessária para calcular (horas extras, faltas, benefícios etc.). Deixe em branco se ainda não recebeu — pode preencher depois editando o cadastro.
+        </div>
+      </div>
+
+      <div class="field-row optional">
+        <div class="field-label">
+          Observações
+          <span class="badge-opt">opcional</span>
+        </div>
+        <div class="field-desc">
+          Campo livre para registrar informações relevantes no momento do cadastro: particularidades do desligamento, pendências iniciais, orientações do cliente. Veja a seção 05 deste manual para exemplos.
+        </div>
+      </div>
+
+    </div>
+
+    <div class="alert alert-tip" style="margin-top: 20px">
+      <div class="alert-icon">💡</div>
+      <div>
+        <p><strong>Sobre os campos opcionais:</strong> Data de Solicitação, Recebimento dos Apontamentos e Observações podem ficar em branco no momento da criação da rescisão. No entanto, ao longo do processo é muito importante que essas informações sejam preenchidas e atualizadas. Elas constroem um histórico rico do processo, permitem rastrear tempos de atendimento, identificar gargalos e dar contexto a qualquer pessoa que precisar acompanhar o caso depois.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 3 — Status -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#ede9fe">🔄</div>
+      <div>
+        <div class="section-num">Seção 03</div>
+        <div class="section-title">Entendendo os status do pipeline</div>
+      </div>
+    </div>
+
+    <div class="alert alert-info">
+      <div class="alert-icon">ℹ️</div>
+      <div>
+        <p>O status reflete o momento real do processo. Mantê-lo atualizado é o que permite à gestão saber o que está pendente, o que está esperando o cliente e o que já foi concluído — sem precisar perguntar para cada analista.</p>
+        <p><strong>Ao mudar o status, sempre preencha o campo de observação</strong> — mesmo que brevemente. Esse texto entra no histórico e fica registrado para sempre.</p>
+      </div>
+    </div>
+
+    <div class="pipeline">
+
+      <div class="status-card">
+        <div class="status-num">1</div>
+        <div><span class="badge-status st-solicitada">Solicitada</span></div>
+        <div class="status-body">
+          <div class="status-title">Rescisão registrada, aguardando início</div>
+          <div class="status-desc">Status inicial de toda rescisão recém-cadastrada. A rescisão existe no sistema mas o trabalho ainda não começou. Se você já foi designado, não deixe acumular rescisões neste status por mais de um dia útil sem ao menos iniciá-las.</div>
+          <div class="status-action">➜ Próximo: Em cálculo</div>
+        </div>
+      </div>
+
+      <div class="status-card">
+        <div class="status-num">2</div>
+        <div><span class="badge-status st-em_calculo">Em cálculo</span></div>
+        <div class="status-body">
+          <div class="status-title">Analista está calculando</div>
+          <div class="status-desc">Você recebeu os apontamentos do cliente e está realizando o cálculo do TRCT e das obrigações. Mova para este status assim que iniciar o trabalho. Se receber mais informações do cliente durante o cálculo, registre nas observações da tarefa correspondente do checklist.</div>
+          <div class="status-action">➜ Próximo: Em conferência</div>
+        </div>
+      </div>
+
+      <div class="status-card">
+        <div class="status-num">3</div>
+        <div><span class="badge-status st-em_conferencia">Em conferência</span></div>
+        <div class="status-body">
+          <div class="status-title">Cálculo finalizado e enviado ao cliente para análise</div>
+          <div class="status-desc">Use este status quando o cálculo estiver concluído no sistema e tiver sido enviado ao cliente para revisão e aprovação. A partir daqui o processo pode seguir dois caminhos: <strong>aprovação direta</strong>, quando o cliente confirma o OK sem ressalvas, ou <strong>solicitação de ajuste</strong>, quando o cliente retorna pedindo alguma correção — o analista aplica a alteração no sistema e o status muda para Aguardando Cliente, aguardando a confirmação do cliente sobre o que foi corrigido.</div>
+          <div class="status-action">➜ Próximo: Aprovada <em>ou</em> Aguardando cliente</div>
+        </div>
+      </div>
+
+      <div class="status-card">
+        <div class="status-num">4</div>
+        <div><span class="badge-status st-aguardando_cliente">Aguardando cliente</span></div>
+        <div class="status-body">
+          <div class="status-title">Correção aplicada — aguardando confirmação do cliente</div>
+          <div class="status-desc">O cliente solicitou um ajuste durante a conferência, o analista aplicou a correção no sistema e agora aguarda a confirmação do cliente. A bola está do lado do cliente — quando ele confirmar o OK, o processo avança para <strong>Aprovada</strong>. Se o cliente solicitar novos ajustes, o ciclo se repete: analista corrige e permanece em Aguardando Cliente.</div>
+          <div class="status-action">➜ Próximo: Aprovada</div>
+        </div>
+      </div>
+
+      <div class="status-card">
+        <div class="status-num">5</div>
+        <div><span class="badge-status st-aprovada">Aprovada</span></div>
+        <div class="status-body">
+          <div class="status-title">Cliente aprovou, executando obrigações</div>
+          <div class="status-desc">O cálculo está aprovado. Agora é o momento de executar o checklist: emitir GRRF, transmitir eSocial S-2299, emitir seguro-desemprego (quando aplicável) etc. Não mova para Finalizada antes de completar todas as tarefas do checklist.</div>
+          <div class="status-action">➜ Próximo: Finalizada</div>
+        </div>
+      </div>
+
+      <div class="status-card">
+        <div class="status-num">6</div>
+        <div><span class="badge-status st-finalizada">Finalizada</span></div>
+        <div class="status-body">
+          <div class="status-title">Processo concluído</div>
+          <div class="status-desc">Todas as obrigações foram cumpridas: TRCT assinado, guias quitadas, eSocial transmitido, documentos gerados. Só marque como finalizada quando <strong>tudo realmente estiver concluído</strong>. Esta é a informação que aparece nos relatórios de produtividade.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="alert alert-tip" style="margin-top: 20px">
+      <div class="alert-icon">💡</div>
+      <div>
+        <p><strong>Retrocesso de status é permitido.</strong> Se o cliente pedir revisão depois de aprovado, você pode voltar para "Em conferência" ou "Aguardando cliente" sem problema. O sistema registra a movimentação no histórico.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 4 — Checklist -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fef3c7">✅</div>
+      <div>
+        <div class="section-num">Seção 04</div>
+        <div class="section-title">Checklist automático de tarefas</div>
+      </div>
+    </div>
+
+    <p style="font-size:13px; color:var(--gray-700); margin-bottom:16px; line-height:1.6">
+      Ao cadastrar uma rescisão, o sistema gera automaticamente o checklist de tarefas com base no <strong>tipo de rescisão</strong> escolhido. Você não precisa criar as tarefas — elas já aparecem na aba "Checklist" dentro do detalhe da rescisão.
+    </p>
+
+    <table class="ck-table">
+      <thead>
+        <tr>
+          <th>Tarefa</th>
+          <th>S/JC</th>
+          <th>P/Dem.</th>
+          <th>J/Causa</th>
+          <th>Acordo</th>
+          <th>T/Prazo</th>
+          <th>Ant.Emp</th>
+          <th>Ant.Trab</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Cálculo do TRCT</td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+        </tr>
+        <tr>
+          <td>eSocial S-2299</td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+        </tr>
+        <tr>
+          <td>Recibo de quitação (TRCT)</td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+        </tr>
+        <tr>
+          <td>Aviso prévio</td>
+          <td><span class="dot"></span></td>
+          <td><span class="dot"></span></td>
+          <td>—</td>
+          <td><span class="dot"></span></td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>GRRF — Multa 40%</td>
+          <td><span class="dot"></span></td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td><span class="dot"></span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>GRRF — Multa 20%</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td><span class="dot"></span></td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>GRRF — FGTS mensal</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td><span class="dot"></span></td>
+          <td>—</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Formulário Seguro-Desemprego</td>
+          <td><span class="dot"></span></td>
+          <td>—</td>
+          <td>—</td>
+          <td><span class="dot"></span></td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Termo de acordo mútuo</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td><span class="dot"></span></td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Indenização art. 479</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td><span class="dot"></span></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Indenização art. 480</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td><span class="dot"></span></td>
+        </tr>
+        <tr>
+          <td>Documentação justa causa</td>
+          <td>—</td>
+          <td>—</td>
+          <td><span class="dot"></span></td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p style="font-size:11px; color:var(--gray-400); margin-top:10px">
+      S/JC = Sem justa causa · P/Dem. = Pedido de demissão · J/Causa = Justa causa · Acordo = Acordo mútuo · T/Prazo = Término de prazo · Ant.Emp = Antecipação empregador · Ant.Trab = Antecipação empregado
+    </p>
+
+    <div class="alert alert-tip" style="margin-top:16px">
+      <div class="alert-icon">💡</div>
+      <div>
+        <p>Ao concluir uma tarefa, o sistema registra automaticamente <strong>quem concluiu e quando</strong>. Se precisar desmarcar uma tarefa marcada por engano, é só desmarcar — o sistema atualiza o registro.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 5 — Observações -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fce7f3">📝</div>
+      <div>
+        <div class="section-num">Seção 05</div>
+        <div class="section-title">A importância das observações</div>
+      </div>
+    </div>
+
+    <p style="font-size:13px; color:var(--gray-700); margin-bottom:16px; line-height:1.6">
+      O sistema registra observações em três momentos diferentes. Cada uma tem um propósito:
+    </p>
+
+    <div class="rules" style="margin-bottom:20px">
+      <div class="rule">
+        <div class="rule-icon">📌</div>
+        <div class="rule-text">
+          <strong>No cadastro inicial:</strong> informações que você já sabe no momento de abrir — particularidades do caso, pendências, avisos.
+        </div>
+      </div>
+      <div class="rule">
+        <div class="rule-icon">🔄</div>
+        <div class="rule-text">
+          <strong>Na mudança de status:</strong> o que motivou a mudança — retorno do cliente, problema encontrado, aprovação recebida.
+        </div>
+      </div>
+      <div class="rule">
+        <div class="rule-icon">✅</div>
+        <div class="rule-text">
+          <strong>Na conclusão de tarefas:</strong> detalhes relevantes sobre a execução — número de protocolo, data de transmissão, ressalvas.
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:13px; color:var(--gray-700); margin-bottom:12px; font-weight:600">Exemplos de boas observações:</p>
+
+    <div class="obs-examples">
+      <div class="obs-ex">
+        <div class="obs-ex-label">No cadastro</div>
+        "Cliente informou que funcionário tinha saldo de banco de horas de 12h. Aguardando espelho de ponto para validar."
+      </div>
+      <div class="obs-ex">
+        <div class="obs-ex-label">Ao mover para Aguardando cliente</div>
+        "TRCT enviado por e-mail em 19/08. Valor líquido R$ 4.872,00. Aguardando aprovação do sócio João para emissão da GRRF."
+      </div>
+      <div class="obs-ex">
+        <div class="obs-ex-label">Ao concluir tarefa eSocial S-2299</div>
+        "Transmitido em 19/08 às 14h32. Recibo nº 1-234567890. Sem inconsistências."
+      </div>
+      <div class="obs-ex">
+        <div class="obs-ex-label">Ao mover para Finalizada</div>
+        "TRCT assinado pelo funcionário em 20/08. Todas as guias quitadas. Processo encerrado."
+      </div>
+    </div>
+
+    <div class="alert alert-warn" style="margin-top:16px">
+      <div class="alert-icon">⚠️</div>
+      <div>
+        <p><strong>Não registre CPF ou dados pessoais sensíveis nas observações.</strong> Por política de privacidade (LGPD), o campo de CPF não existe no sistema. Mantenha as observações focadas em fatos do processo, não em dados do funcionário.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 6 — Regras gerais -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon" style="background:#fee2e2">📌</div>
+      <div>
+        <div class="section-num">Seção 06</div>
+        <div class="section-title">Regras e cuidados importantes</div>
+      </div>
+    </div>
+
+    <div class="rules">
+      <div class="rule">
+        <div class="rule-icon">⏰</div>
+        <div class="rule-text">
+          <strong>Cadastre no mesmo dia em que receber a solicitação.</strong> O prazo de pagamento começa a contar da data da rescisão — um cadastro tardio pode mascarar atrasos no acompanhamento.
+        </div>
+      </div>
+      <div class="rule">
+        <div class="rule-icon">📅</div>
+        <div class="rule-text">
+          <strong>Feriados não são calculados automaticamente.</strong> O sistema calcula data da rescisão + 9 dias e ajusta se cair em fim de semana, mas não conhece feriados. Verifique e ajuste o prazo de pagamento manualmente quando necessário.
+        </div>
+      </div>
+      <div class="rule">
+        <div class="rule-icon">🔒</div>
+        <div class="rule-text">
+          <strong>Só você (analista responsável), gestores e admin podem mover o status ou concluir tarefas.</strong> Outros analistas podem visualizar, mas não alterar.
+        </div>
+      </div>
+      <div class="rule">
+        <div class="rule-icon">🗑️</div>
+        <div class="rule-text">
+          <strong>Cadastro por engano → solicite exclusão ao administrador.</strong> Se uma rescisão foi aberta incorretamente (empresa errada, funcionário duplicado, etc.), não cancele — entre em contato com o admin para exclusão definitiva. A exclusão apaga todos os dados e não pode ser desfeita.
+        </div>
+      </div>
+      <div class="rule">
+        <div class="rule-icon">❌</div>
+        <div class="rule-text">
+          <strong>Cancelamento é para rescisões que foram interrompidas por um fato real.</strong> Use quando o processo existia legitimamente mas precisou ser suspenso — exemplos: funcionário descobriu estabilidade (CIPA, gravidez, acidente de trabalho), aviso prévio foi cancelado ou o empregado desistiu do pedido de demissão. O cancelamento exige informar o motivo, fica registrado no histórico e pode ser revertido se necessário.
+        </div>
+      </div>
+      <div class="rule">
+        <div class="rule-icon">🚫</div>
+        <div class="rule-text">
+          <strong>Não finalize sem completar o checklist.</strong> O status "Finalizada" deve refletir a realidade. Se o processo não terminou, mantenha no status corrente.
+        </div>
+      </div>
+      <div class="rule">
+        <div class="rule-icon">💬</div>
+        <div class="rule-text">
+          <strong>Em caso de dúvida sobre tipo de rescisão ou aviso prévio, pergunte antes de cadastrar.</strong> O checklist é gerado na hora — um tipo errado cria um checklist errado, e não há como corrigir sem reabrir o cadastro.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  DP+ · Documento de uso interno · Equipe de Analistas
+</footer>
+
+</body>
+</html>
