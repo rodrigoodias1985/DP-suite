@@ -111,39 +111,108 @@ header {
 }
 .btn-manual:hover { background:rgba(255,255,255,.2) }
 
-main { max-width: 980px; margin: 0 auto; padding: 20px }
+main { max-width: 1200px; margin: 0 auto; padding: 0 20px 20px }
 
-/* === FILTER BAR === */
-.toolbar-status { display:flex; margin-bottom:10px }
-.toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px }
-.filter-bar { display:flex; gap:6px; flex-wrap:wrap; align-items:center }
-.fbtn {
-  padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600; cursor:pointer;
+/* === LAYOUT — coluna principal (filtros + lista) e coluna lateral
+   (indicadores). A lateral só é usada por quem enxerga a carteira toda
+   (admin/gestor); para analista o conteúdo ocupa a coluna inteira. === */
+#v-content { display:flex; gap:24px; align-items:flex-start }
+.col-main { flex:1; min-width:0 }
+.col-side { width:272px; flex-shrink:0; position:sticky; top:68px; display:flex; flex-direction:column; gap:16px }
+@media (max-width: 900px) {
+  #v-content { flex-direction:column }
+  .col-side { width:100%; position:static }
+}
+
+/* === CABEÇALHO FIXO — cards de status + filtros ficam grudados no
+   topo (abaixo do header de 52px) ao rolar a lista. Fundo sólido igual
+   ao da página (--gray-100) pra mascarar o conteúdo passando por baixo. === */
+.col-main-sticky {
+  position:sticky; top:52px; z-index:50; background:var(--gray-100); padding-top:20px;
+}
+
+/* === CARDS DE STATUS — mesmo padrão visual da aba "Visão Geral" do
+   index.html (.kgrid/.kcard): grade de cards com rótulo pequeno em
+   caixa alta e número grande, mesmo raio/borda/cor de fundo. Colunas
+   fixas (5, não auto-fit) porque o conjunto de cards é sempre o mesmo
+   — assim todos ficam com a mesma largura, independente do tamanho do
+   rótulo (era o que fazia o último ficar maior que os demais). === */
+.kgrid { display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-bottom:14px }
+.kcard {
+  background:var(--white); border:1px solid var(--gray-200); border-radius:var(--radius-lg);
+  padding:14px 16px; cursor:pointer; transition:border-color .12s, box-shadow .12s;
+}
+.kcard:hover { border-color:var(--teal); box-shadow:0 2px 10px rgba(0,0,0,.05) }
+.kcard.active { border-color:var(--teal); box-shadow:0 0 0 1px var(--teal) inset }
+.kl { font-size:10px; font-weight:700; color:var(--gray-400); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px }
+.kn { font-size:24px; font-weight:800; line-height:1 }
+@media (max-width: 720px) {
+  .kgrid { grid-template-columns:repeat(2, 1fr) }
+}
+
+/* === TOOLBAR === */
+.toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding-bottom:14px }
+.fl { font-size:11px; color:var(--gray-400); font-weight:600 }
+.rs-search { max-width: 200px }
+.rs-search input { padding:7px 12px; font-size:12px }
+.filtro-analista, .filtro-escopo {
+  width:auto; min-width:130px; max-width:180px; padding:5px 10px; font-size:11.5px;
+  border-radius:20px; border:1.5px solid var(--gray-200); color:var(--gray-700);
+}
+.fbtn-prazo-toggle {
+  padding:5px 12px; border-radius:20px; font-size:11px; font-weight:600; cursor:pointer;
   border:1.5px solid var(--gray-200); background:var(--white); color:var(--gray-500); transition:all .12s;
   white-space:nowrap;
 }
-.fbtn.on { background:var(--teal); border-color:var(--teal); color:var(--white) }
-.fbtn:hover:not(.on) { border-color:var(--teal); color:var(--teal) }
-.rs-search {
-  max-width: 220px;
-}
-.rs-search input { padding:7px 12px; font-size:12px }
-.fbtn-cancel-toggle {
-  padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600; cursor:pointer;
-  border:1.5px solid var(--red-bg); background:var(--white); color:var(--gray-400); transition:all .12s;
-  white-space:nowrap;
-}
-.fbtn-cancel-toggle.on { background:var(--red-bg); border-color:var(--red); color:var(--red) }
-.fbtn-prazo-toggle {
-  padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600; cursor:pointer;
-  border:1.5px solid var(--amber-bg); background:var(--white); color:var(--gray-400); transition:all .12s;
-  white-space:nowrap;
-}
+.fbtn-prazo-toggle:hover:not(.on) { border-color:var(--amber); color:var(--amber) }
 .fbtn-prazo-toggle.on { background:var(--amber-bg); border-color:var(--amber); color:var(--amber) }
-.filtro-analista {
-  width:auto; min-width:160px; max-width:200px; padding:5px 10px; font-size:11.5px;
-  border-radius:20px; border:1.5px solid var(--gray-200); color:var(--gray-700);
+
+/* === PAINEL LATERAL — gráfico de rosca por analista === */
+.donut-card {
+  background:var(--white); border:1px solid var(--gray-200); border-radius:var(--radius-lg);
+  padding:16px; display:flex; flex-direction:column; gap:12px;
 }
+.donut-card h4 {
+  font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--gray-500);
+}
+.donut-wrap { display:flex; flex-direction:column; align-items:center; gap:14px }
+.donut-svg { flex-shrink:0 }
+.donut-legend { width:100%; display:flex; flex-direction:column; gap:7px; font-size:11.5px }
+.donut-legend-item { display:flex; align-items:center; gap:7px }
+.donut-legend-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0 }
+.donut-legend-name {
+  flex:1; color:var(--gray-700); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.donut-legend-count { color:var(--gray-500); white-space:nowrap; flex-shrink:0 }
+
+/* === VOLUME MENSAL — rescisões por mês (data do último dia trabalhado).
+   Fica acima da lista, fora do cabeçalho fixo (não é filtro do dia a
+   dia, é uma visão de tendência — não precisa ficar grudada na tela). === */
+.volume-card {
+  background:var(--white); border:1px solid var(--gray-200); border-radius:var(--radius-lg);
+  padding:16px 18px 14px; margin-bottom:14px;
+}
+.volume-head { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:10px }
+.volume-head h4 { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--gray-500) }
+.volume-head h4 .hint { text-transform:none; letter-spacing:0; font-weight:500 }
+.volume-total { font-size:11px; color:var(--gray-500) }
+.volume-total b { color:var(--navy); font-size:13px }
+.volume-periodo { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-bottom:14px }
+.volume-periodo input[type=month] {
+  width:auto; padding:5px 9px; font-size:11.5px; border-radius:20px; border:1.5px solid var(--gray-200);
+}
+.volume-reset {
+  padding:4px 11px; border-radius:20px; font-size:11px; font-weight:600; cursor:pointer;
+  border:1.5px solid var(--gray-200); background:var(--white); color:var(--gray-500); transition:all .12s;
+  white-space:nowrap;
+}
+.volume-reset:hover { border-color:var(--teal); color:var(--teal) }
+.volume-chart { display:flex; align-items:flex-end; gap:6px; overflow-x:auto; padding-bottom:2px; min-height:130px }
+.volume-bar-wrap { display:flex; flex-direction:column-reverse; align-items:center; gap:4px; min-width:34px; flex:1 }
+.volume-bar { width:60%; min-width:14px; background:var(--teal); border-radius:4px 4px 0 0 }
+.volume-bar.zero { background:var(--gray-200) }
+.volume-bar-lbl { font-size:9.5px; color:var(--gray-400); white-space:nowrap }
+.volume-bar-n { font-size:10.5px; font-weight:700; color:var(--navy) }
 
 /* === LISTA === */
 .rs-card.cancelada { opacity:.7; border-style:dashed }
@@ -262,20 +331,47 @@ main { max-width: 980px; margin: 0 auto; padding: 20px }
   <div id="v-loading" class="loading"><div class="spinner"></div> Carregando…</div>
 
   <div id="v-content" class="hidden">
-    <div class="toolbar-status">
-      <div class="filter-bar" id="filter-bar"></div>
-    </div>
-    <div class="toolbar">
-      <select class="filtro-analista hidden" id="filtro-analista" onchange="setFiltroAnalista(this.value)"></select>
-      <button class="fbtn-prazo-toggle" id="btn-toggle-prazo5d" onclick="togglePrazo5d()" title="Rescisões não finalizadas com prazo de pagamento nos próximos 5 dias">📅 Vencendo em 5 dias</button>
-      <button class="fbtn-cancel-toggle" id="btn-toggle-canceladas" onclick="toggleCanceladas()">Mostrar canceladas</button>
-      <div class="rs-search">
-        <input type="text" id="busca" placeholder="Buscar funcionário ou empresa…" oninput="renderLista()">
+    <div class="col-main">
+      <div class="col-main-sticky">
+        <div class="kgrid" id="kpi-sumbar"></div>
+
+        <div class="toolbar">
+          <select class="filtro-escopo" id="filtro-escopo" onchange="setEscopo(this.value)">
+            <option value="ativas">Ativas</option>
+            <option value="canceladas">Canceladas</option>
+            <option value="finalizadas">Finalizadas</option>
+            <option value="todas">Todas</option>
+          </select>
+          <select class="filtro-analista hidden" id="filtro-analista" onchange="setFiltroAnalista(this.value)"></select>
+          <button class="fbtn-prazo-toggle" id="btn-toggle-prazo5d" onclick="togglePrazo5d()" title="Rescisões não finalizadas com prazo de pagamento nos próximos 5 dias">📅 Vencendo em 5 dias</button>
+          <div class="rs-search">
+            <input type="text" id="busca" placeholder="Buscar funcionário ou empresa…" oninput="renderLista()">
+          </div>
+          <button class="btn btn-primary" onclick="openCadastro()">+ Nova rescisão</button>
+        </div>
       </div>
-      <button class="btn btn-primary" onclick="openCadastro()">+ Nova rescisão</button>
+
+      <div class="volume-card hidden" id="volume-card">
+        <div class="volume-head">
+          <h4>Rescisões por mês <span class="hint">— data do último dia trabalhado</span></h4>
+          <span class="volume-total" id="volume-total"></span>
+        </div>
+        <div class="volume-periodo">
+          <span class="fl">Período:</span>
+          <input type="month" id="volume-mes-inicio" onchange="setPeriodoVolume('inicio', this.value)">
+          <span class="fl">até</span>
+          <input type="month" id="volume-mes-fim" onchange="setPeriodoVolume('fim', this.value)">
+          <button class="volume-reset" onclick="resetPeriodoVolume()">Últimos 12 meses</button>
+        </div>
+        <div class="volume-chart" id="volume-chart"></div>
+      </div>
+
+      <div id="lista"></div>
     </div>
 
-    <div id="lista"></div>
+    <aside class="col-side hidden" id="col-side">
+      <div class="donut-card" id="donut-card"></div>
+    </aside>
   </div>
 </main>
 
@@ -420,12 +516,49 @@ const TIPO_TAREFA_LABEL = {
 let ME = null, PERFIL = null, NOME = null;
 let ANALISTAS = [];
 let RESCISOES = [];
+
+// F_STATUS: filtro por etapa do pipeline. 'todas' = qualquer etapa.
+// 'finalizada' NÃO é um valor válido aqui de propósito — finalizadas
+// são tratadas pelo filtro de escopo (ver ESCOPO abaixo), não misturadas
+// com o filtro de etapa, pra evitar as duas dimensões pisarem uma na
+// outra (era a causa do "aparecem outros status junto").
 let F_STATUS = 'todas';
-let SHOW_CANCELADAS = false;
+
+// ESCOPO controla o que entra na lista além da etapa: por padrão só o
+// pipeline ativo (oculta canceladas e finalizadas — pedido original de
+// reduzir poluição visual). Selecionar "Canceladas" ou "Finalizadas"
+// ISOLA a lista só naquele grupo, em vez de simplesmente revelar os
+// registros misturados com o resto (comportamento anterior confuso).
+let ESCOPO = 'ativas'; // 'ativas' | 'canceladas' | 'finalizadas' | 'todas'
+
 let F_ANALISTA = 'todos';   // id do analista selecionado, só usado por admin/gestor
 let F_PRAZO5D = false;      // toggle: não finalizadas com prazo nos próximos 5 dias
 let CAD_EMPRESA = null;      // { id, codigo, razao_social } encontrada no cadastro
 let DET_RESCISAO_ID = null;  // id da rescisão aberta no modal de detalhe
+
+// Status que compõem o pipeline ativo — usados na barra de indicadores
+// (sumbar) e no gráfico de rosca. 'finalizada' fica fora por ser o fim
+// do pipeline (coberta pelo filtro de escopo).
+const STATUS_ATIVOS = ['solicitada','em_calculo','em_conferencia','aguardando_cliente','aprovada'];
+
+// Paleta cíclica do gráfico de rosca por analista — cores fixas, não
+// derivadas do quadro de cores do design system porque aqui a função é
+// diferenciar N analistas, não comunicar semântica de status/risco.
+const DONUT_COLORS = ['#0d7377','#2563eb','#d97706','#dc2626','#16a34a','#7c3aed','#db2777','#0891b2','#65a30d','#ea580c'];
+
+// Volume mensal — período exibido no gráfico "Rescisões por mês"
+// (formato 'YYYY-MM', mesmo formato do <input type=month>). Calculado
+// como janela móvel dos últimos 12 meses (incluindo o mês atual) toda
+// vez que a página carrega ou que o botão de reset é usado.
+let MES_INICIO = null, MES_FIM = null;
+function calcularPeriodoPadrao12m() {
+  const hoje = new Date();
+  const fim = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  const inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 11, 1);
+  MES_FIM = fim.toISOString().slice(0, 7);
+  MES_INICIO = inicio.toISOString().slice(0, 7);
+}
+calcularPeriodoPadrao12m();
 
 // ============================================================
 // INIT — guard de sessão (mesmo padrão do dashboard.html)
@@ -455,9 +588,15 @@ async function boot() {
     const { data: al } = await sb.from('usuarios').select('id, nome')
       .eq('perfil', 'analista').eq('ativo', true).order('nome');
     ANALISTAS = al || [];
+    // Coluna lateral (gráfico de rosca) e volume mensal só fazem sentido
+    // para quem enxerga a carteira completa (mesma visibilidade do
+    // filtro de analista).
+    show('col-side');
+    show('volume-card');
+    eid('volume-mes-inicio').value = MES_INICIO;
+    eid('volume-mes-fim').value = MES_FIM;
   }
 
-  buildFilterBar();
   buildFiltroAnalista();
   buildCadastroSelects();
   await loadRescisoes();
@@ -482,16 +621,24 @@ async function loadRescisoes() {
   if (error) { toast('Erro ao carregar rescisões: ' + error.message, 'err'); return; }
   RESCISOES = data || [];
   renderLista();
+  renderVolumeMensal();
 }
 
-function buildFilterBar() {
-  const opts = [['todas', 'Todas'], ...STATUS_ORDER.map(s => [s, STATUS_LABEL[s]])];
-  eid('filter-bar').innerHTML = opts.map(([v, l]) =>
-    `<button class="fbtn ${F_STATUS === v ? 'on' : ''}" onclick="setFiltro('${v}')">${l}</button>`
-  ).join('');
+// Clique num número da barra de indicadores seleciona aquela etapa do
+// pipeline. Clicar de novo no mesmo número desmarca (volta pra "todas").
+// Também força ESCOPO de volta pra "ativas": os números da sumbar são
+// sempre calculados sobre o pipeline ativo, então o resultado da lista
+// abaixo tem que bater com o número que a pessoa clicou.
+function setFiltro(v) {
+  F_STATUS = (F_STATUS === v) ? 'todas' : v;
+  if (ESCOPO !== 'ativas') { ESCOPO = 'ativas'; eid('filtro-escopo').value = 'ativas'; }
+  renderLista();
 }
 
-function setFiltro(v) { F_STATUS = v; buildFilterBar(); renderLista(); }
+// Escopo: dimensão independente da etapa do pipeline. "Ativas" (padrão)
+// oculta canceladas e finalizadas para não poluir a tela; os outros
+// valores ISOLAM a lista (não misturam com o resto) — ver renderLista().
+function setEscopo(v) { ESCOPO = v; renderLista(); }
 
 // Filtro por analista — só admin e gestor têm visão de carteira completa
 // (mesmo escopo de ANALISTAS já carregado no boot()). Analista não vê
@@ -506,12 +653,6 @@ function buildFiltroAnalista() {
 
 function setFiltroAnalista(v) { F_ANALISTA = v; renderLista(); }
 
-function toggleCanceladas() {
-  SHOW_CANCELADAS = !SHOW_CANCELADAS;
-  eid('btn-toggle-canceladas').classList.toggle('on', SHOW_CANCELADAS);
-  renderLista();
-}
-
 // Filtro rápido: rescisões não finalizadas, não canceladas, com prazo
 // de pagamento entre hoje e os próximos 5 dias (inclusive). Não inclui
 // prazos já vencidos — esses já são sinalizados pela borda "atrasada".
@@ -521,12 +662,204 @@ function togglePrazo5d() {
   renderLista();
 }
 
+// ============================================================
+// KPI PANEL — cards por status do pipeline ativo + gráfico de rosca
+// por analista. Recalculados a cada renderLista(), então acompanham
+// automaticamente qualquer mudança de dado ou filtro de analista.
+// ============================================================
+
+// Cards de status: sempre excluem canceladas e finalizadas (não fazem
+// parte do pipeline "em aberto"), independente dos toggles de
+// visibilidade da lista — os cards mostram o panorama do trabalho
+// pendente, não o resultado filtrado da lista abaixo. Respeitam o
+// filtro de analista (F_ANALISTA) quando admin/gestor tiver um
+// selecionado; sem seleção, mostram o total do departamento/carteira.
+function computeKpiCounts() {
+  const counts = Object.fromEntries(STATUS_ATIVOS.map(s => [s, 0]));
+  RESCISOES.forEach(r => {
+    if (r.cancelada) return;
+    if (!(r.status in counts)) return;
+    if ((PERFIL === 'admin' || PERFIL === 'gestor') && F_ANALISTA !== 'todos' && r.analista_id !== F_ANALISTA) return;
+    counts[r.status]++;
+  });
+  return counts;
+}
+
+// Mesmo padrão visual dos cards da aba "Visão Geral" do index.html
+// (.kgrid/.kcard/.kl/.kn) — grade de cards com largura igual entre si,
+// cada um clicável e funcionando como filtro de etapa.
+function renderKpiSumbar() {
+  const counts = computeKpiCounts();
+  const cores = {
+    solicitada: 'var(--gray-500)', em_calculo: 'var(--amber)', em_conferencia: 'var(--blue)',
+    aguardando_cliente: 'var(--red)', aprovada: 'var(--teal)'
+  };
+  eid('kpi-sumbar').innerHTML = STATUS_ATIVOS.map(s => `
+    <div class="kcard ${F_STATUS === s ? 'active' : ''}" onclick="setFiltro('${s}')" title="Filtrar por ${STATUS_LABEL[s]}">
+      <div class="kl">${STATUS_LABEL[s]}</div>
+      <div class="kn" style="color:${cores[s]}">${counts[s]}</div>
+    </div>
+  `).join('');
+}
+
+// Gráfico de rosca: processos ativos (não cancelados, não finalizados)
+// agrupados por analista responsável, ordenados do maior para o menor
+// volume — resposta direta a "quem tem mais processo pra fechar".
+// Ignora F_ANALISTA de propósito: é um gráfico comparativo entre
+// analistas, então sempre mostra o departamento inteiro. Só é chamado
+// para admin/gestor (ver boot() e show('donut-card')).
+function computeAnalistaBreakdown() {
+  const map = {};
+  RESCISOES.forEach(r => {
+    if (r.cancelada || r.status === 'finalizada') return;
+    const nome = r.usuarios?.nome || 'Sem responsável';
+    map[nome] = (map[nome] || 0) + 1;
+  });
+  return Object.entries(map).sort((a, b) => b[1] - a[1]);
+}
+
+function renderDonutAnalista() {
+  if (eid('col-side').classList.contains('hidden')) return; // não construído para analista
+  const el = eid('donut-card');
+
+  const data = computeAnalistaBreakdown();
+  const total = data.reduce((s, [, c]) => s + c, 0);
+
+  if (!total) {
+    el.innerHTML = `<h4>Processos ativos por analista</h4><p class="hint">Nenhum processo ativo no momento.</p>`;
+    return;
+  }
+
+  const R = 52, C = 2 * Math.PI * R, CX = 70, CY = 70;
+  let offset = 0;
+  const arcos = data.map(([, count], i) => {
+    const len = (count / total) * C;
+    const cor = DONUT_COLORS[i % DONUT_COLORS.length];
+    const arco = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${cor}"
+      stroke-width="16" stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-offset}"
+      transform="rotate(-90 ${CX} ${CY})"/>`;
+    offset += len;
+    return arco;
+  }).join('');
+
+  const legenda = data.map(([nome, count], i) => `
+    <div class="donut-legend-item">
+      <span class="donut-legend-dot" style="background:${DONUT_COLORS[i % DONUT_COLORS.length]}"></span>
+      <span class="donut-legend-name">${escHtml(nome)}</span>
+      <span class="donut-legend-count">${count} · ${Math.round((count / total) * 100)}%</span>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <h4>Processos ativos por analista</h4>
+    <div class="donut-wrap">
+      <svg class="donut-svg" width="140" height="140" viewBox="0 0 140 140">
+        ${arcos}
+        <text x="70" y="66" text-anchor="middle" font-size="20" font-weight="800" fill="var(--navy)">${total}</text>
+        <text x="70" y="82" text-anchor="middle" font-size="9" fill="var(--gray-500)">ATIVOS</text>
+      </svg>
+      <div class="donut-legend">${legenda}</div>
+    </div>`;
+}
+
+// ============================================================
+// VOLUME MENSAL — rescisões por mês, pela data do último dia
+// trabalhado (data_rescisao), não pela data de pagamento. Cancelada
+// não conta: representa um desligamento que não chegou a se
+// consolidar (interrompido por um fato real), então entraria como
+// "tivemos uma rescisão" de forma enganosa. Ignora F_ANALISTA/ESCOPO/
+// F_STATUS de propósito — é uma pergunta de volume histórico total,
+// não uma subview filtrada da lista (mesmo raciocínio do donut).
+// ============================================================
+
+// Gera a sequência de meses ('YYYY-MM') entre início e fim, inclusive.
+// Retorna [] se início vier depois do fim (período inválido).
+function monthRange(inicio, fim) {
+  const [yi, mi] = inicio.split('-').map(Number);
+  const [yf, mf] = fim.split('-').map(Number);
+  const out = [];
+  let y = yi, m = mi, guard = 0; // guard evita loop infinito com datas malformadas
+  while ((y < yf || (y === yf && m <= mf)) && guard < 240) {
+    out.push(`${y}-${String(m).padStart(2, '0')}`);
+    m++; if (m > 12) { m = 1; y++; }
+    guard++;
+  }
+  return out;
+}
+
+function computeVolumeMensal() {
+  const meses = monthRange(MES_INICIO, MES_FIM);
+  const counts = Object.fromEntries(meses.map(m => [m, 0]));
+  RESCISOES.forEach(r => {
+    if (r.cancelada || !r.data_rescisao) return;
+    const m = r.data_rescisao.slice(0, 7);
+    if (m in counts) counts[m]++;
+  });
+  return meses.map(m => ({ mes: m, total: counts[m] }));
+}
+
+const MES_ABREV = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function fmtMesAno(m) {
+  const [y, mm] = m.split('-');
+  return `${MES_ABREV[parseInt(mm, 10) - 1]}/${y.slice(2)}`;
+}
+
+function renderVolumeMensal() {
+  if (eid('volume-card').classList.contains('hidden')) return; // não construído para analista
+
+  const dados = computeVolumeMensal();
+  eid('volume-total').textContent = '';
+
+  if (!dados.length) {
+    eid('volume-chart').innerHTML = `<p class="hint">Período inválido — o mês inicial precisa ser igual ou anterior ao mês final.</p>`;
+    return;
+  }
+
+  const totalPeriodo = dados.reduce((s, d) => s + d.total, 0);
+  eid('volume-total').innerHTML = `<b>${totalPeriodo}</b> rescisão(ões) no período`;
+
+  const maxVal = Math.max(1, ...dados.map(d => d.total));
+  const CHART_MAX_PX = 90;
+
+  eid('volume-chart').innerHTML = dados.map(d => {
+    const px = d.total > 0 ? Math.max(4, Math.round((d.total / maxVal) * CHART_MAX_PX)) : 2;
+    return `
+      <div class="volume-bar-wrap" title="${fmtMesAno(d.mes)}: ${d.total} rescisão(ões)">
+        <div class="volume-bar-lbl">${fmtMesAno(d.mes)}</div>
+        <div class="volume-bar ${d.total === 0 ? 'zero' : ''}" style="height:${px}px"></div>
+        <div class="volume-bar-n">${d.total || ''}</div>
+      </div>`;
+  }).join('');
+}
+
+function setPeriodoVolume(campo, v) {
+  if (!v) return; // usuário limpou o campo — ignora, mantém valor anterior
+  if (campo === 'inicio') MES_INICIO = v; else MES_FIM = v;
+  renderVolumeMensal();
+}
+
+function resetPeriodoVolume() {
+  calcularPeriodoPadrao12m();
+  eid('volume-mes-inicio').value = MES_INICIO;
+  eid('volume-mes-fim').value = MES_FIM;
+  renderVolumeMensal();
+}
+
 function renderLista() {
+  renderKpiSumbar();
+  renderDonutAnalista();
   const busca = (eid('busca').value || '').toLowerCase().trim();
   const hoje = new Date().toISOString().slice(0, 10);
 
-  let rows = RESCISOES.filter(r => F_STATUS === 'todas' || r.status === F_STATUS);
-  if (!SHOW_CANCELADAS) rows = rows.filter(r => !r.cancelada);
+  // Escopo isola o grupo (não mistura com o resto da base) — resolve o
+  // problema de "mostrar canceladas/finalizadas" antes revelar registros
+  // junto com todo o restante da lista de forma confusa.
+  let rows;
+  if (ESCOPO === 'canceladas')      rows = RESCISOES.filter(r => r.cancelada);
+  else if (ESCOPO === 'finalizadas') rows = RESCISOES.filter(r => r.status === 'finalizada');
+  else if (ESCOPO === 'todas')       rows = RESCISOES.slice();
+  else /* 'ativas' */                rows = RESCISOES.filter(r => !r.cancelada && r.status !== 'finalizada');
+
+  if (F_STATUS !== 'todas') rows = rows.filter(r => r.status === F_STATUS);
   if ((PERFIL === 'admin' || PERFIL === 'gestor') && F_ANALISTA !== 'todos') {
     rows = rows.filter(r => r.analista_id === F_ANALISTA);
   }
