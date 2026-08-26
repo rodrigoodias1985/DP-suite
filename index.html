@@ -501,6 +501,7 @@
 
   <nav class="tabs hidden" id="tabs-analista">
     <button class="tab" onclick="window.open('/rescisoes.html','_blank')" title="Abrir Rescisões em nova aba">Rescisões ↗</button>
+    <button class="tab" onclick="window.open('/ferramentas.html','_blank')" title="Abrir Ferramentas em nova aba">🛠️ Ferramentas ↗</button>
   </nav>
 
   <nav class="tabs hidden" id="tabs-gestor">
@@ -508,6 +509,8 @@
     <button class="tab" data-tab="cart" onclick="gTab(this)">Carteiras</button>
     <button class="tab" onclick="window.open('/rescisoes.html','_blank')"
       title="Abrir Rescisões em nova aba">Rescisões ↗</button>
+    <button class="tab" onclick="window.open('/ferramentas.html','_blank')"
+      title="Abrir Ferramentas em nova aba">🛠️ Ferramentas ↗</button>
     <button class="tab" style="margin-left:auto;color:var(--teal);font-weight:600"
       onclick="window.open('/dashboard.html','_blank')"
       title="Abrir Dashboard Gerencial em nova aba">📊 Dashboard Gerencial ↗</button>
@@ -522,6 +525,8 @@
     <button class="tab"        data-tab="dash"   onclick="aTab(this)">Visão Geral</button>
     <button class="tab" onclick="window.open('/rescisoes.html','_blank')"
       title="Abrir Rescisões em nova aba">Rescisões ↗</button>
+    <button class="tab" onclick="window.open('/ferramentas.html','_blank')"
+      title="Abrir Ferramentas em nova aba">🛠️ Ferramentas ↗</button>
     <button class="tab" style="margin-left:auto;color:var(--teal);font-weight:600"
       onclick="window.open('/dashboard.html','_blank')"
       title="Abrir Dashboard Gerencial em nova aba">📊 Dashboard Gerencial ↗</button>
@@ -735,7 +740,8 @@ let NOME      = null;
 let COMP      = null;   // { id, mes, ano, status }  — competência ativa
 let COMPS     = [];     // todas as competências abertas
 let ATIVS     = [];     // catálogo das 12 atividades
-let ANALISTAS = [];     // lista de analistas
+let ANALISTAS = [];     // lista de analistas ATIVOS (usada para atribuição de trabalho novo)
+let ANALISTAS_TODOS = []; // lista de analistas ativos + inativos (usada para exibição histórica)
 
 // modal entregas
 let MODAL_ID  = null;
@@ -822,6 +828,15 @@ async function boot() {
     .from('usuarios').select('id, nome')
     .eq('perfil', 'analista').eq('ativo', true).order('nome');
   ANALISTAS = al || [];
+
+  // Carrega TODOS os analistas (ativos + inativos) — usado em exibição de
+  // registros históricos (Carteiras de meses passados, Painel Executivo,
+  // filtro por analista), para que o nome de quem trabalhou naquele mês
+  // não desapareça quando a pessoa é desativada depois.
+  const { data: alTodos } = await sb
+    .from('usuarios').select('id, nome, ativo')
+    .eq('perfil', 'analista').order('nome');
+  ANALISTAS_TODOS = alTodos || [];
 
   hide('v-login');
   show('v-app');
@@ -1457,15 +1472,20 @@ async function renderGestor() {
     </div>`;
   }
 
-  const anRows = ANALISTAS.map(a => {
-    const ae   = aplic.filter(e => e._analista_id === a.id);
-    const done = ae.filter(e => e.data_conclusao || e.nao_ocorreu).length;
-    const tot  = ae.length;
-    const pct  = tot > 0 ? Math.round(done / tot * 100) : 0;
-    const emps = new Set(ae.map(e => e.empresa_id)).size;
-    return `<div class="arow">
+  const anRows = ANALISTAS_TODOS
+    .map(a => {
+      const ae   = aplic.filter(e => e._analista_id === a.id);
+      const done = ae.filter(e => e.data_conclusao || e.nao_ocorreu).length;
+      const tot  = ae.length;
+      return { a, done, tot };
+    })
+    .filter(({ a, tot }) => a.ativo !== false || tot > 0)
+    .map(({ a, done, tot }) => {
+      const pct  = tot > 0 ? Math.round(done / tot * 100) : 0;
+      const emps = new Set(aplic.filter(e => e._analista_id === a.id).map(e => e.empresa_id)).size;
+      return `<div class="arow">
       <div>
-        <div class="aname">${escHtml(a.nome)}</div>
+        <div class="aname">${escHtml(nomeAnalista(a))}</div>
         <div class="ameta">${emps} emp · ${done}/${tot} atividades</div>
       </div>
       <div class="apw">
@@ -1473,13 +1493,13 @@ async function renderGestor() {
         <span class="apct" style="color:${pCol(pct)}">${pct}%</span>
       </div>
     </div>`;
-  }).sort((a, b) => {
+    }).sort((a, b) => {
     const pA = parseInt(a.match(/(\d+)%/)?.[1] || '0');
     const pB = parseInt(b.match(/(\d+)%/)?.[1] || '0');
     return pA - pB;
   }).join('');
 
-  const noAnalistas = ANALISTAS.length === 0
+  const noAnalistas = ANALISTAS_TODOS.length === 0
     ? '<p style="font-size:13px;color:var(--gray-400)">Nenhum analista cadastrado ainda.</p>'
     : (anRows || '<p style="font-size:13px;color:var(--gray-400)">Nenhum analista com atividades nesta competência.</p>');
 
@@ -1527,11 +1547,11 @@ function showCardDetail(key) {
 
   const rows = Object.values(byEmp).map(x => {
     const nm = x.emp ? `${x.emp.codigo} · ${x.emp.razao_social}` : '?';
-    const an = ANALISTAS.find(a => a.id === x.analId);
+    const an = ANALISTAS_TODOS.find(a => a.id === x.analId);
     return `<div class="cd-row">
       <div>
         <div class="cd-name">${escHtml(nm)}</div>
-        <div class="cd-atv">${x.atvs.join(' · ')}${an ? ' · ' + escHtml(an.nome.split(' ')[0]) : ''}</div>
+        <div class="cd-atv">${x.atvs.join(' · ')}${an ? ' · ' + escHtml(an.nome.split(' ')[0] + (an.ativo === false ? ' (inativo)' : '')) : ''}</div>
       </div>
       <span class="tag tag-closed">${x.atvs.length} pend.</span>
     </div>`;
@@ -1667,7 +1687,7 @@ async function renderAdminEmp() {
   ).order('codigo');
 
   const rows = (emps || []).map(e => {
-    const an  = ANALISTAS.find(a => a.id === e.analista_id);
+    const an  = ANALISTAS_TODOS.find(a => a.id === e.analista_id);
     const enc = e.status === 'encerrado';
     const stLabel =
       e.status === 'ativo'         ? 'Ativa' :
@@ -1690,7 +1710,7 @@ async function renderAdminEmp() {
       <td style="font-size:12px;padding:6px 8px">${e.tem_adiantamento ? '✓' : '—'}</td>
       <td style="font-size:12px;padding:6px 8px">${fmtDate(e.data_inicio)}</td>
       <td style="font-size:12px;padding:6px 8px">${fmtDate(e.data_fim)}</td>
-      <td style="font-size:12px;padding:6px 8px">${an ? an.nome.split(' ')[0] : '—'}</td>
+      <td style="font-size:12px;padding:6px 8px">${an ? an.nome.split(' ')[0] + (an.ativo === false ? ' (inativo)' : '') : '—'}</td>
       <td style="padding:6px 8px;white-space:nowrap">${actionBtns}</td>
     </tr>`;
   }).join('');
@@ -1736,13 +1756,13 @@ function exportEmps() {
     ['Código','Razão Social','Tipo','Status','Funcionários','Tem Adiantamento','Data Início','Data Fim','Analista']
   ];
   emps.forEach(e => {
-    const an = ANALISTAS.find(a => a.id === e.analista_id);
+    const an = ANALISTAS_TODOS.find(a => a.id === e.analista_id);
     aoa.push([
       e.codigo, e.razao_social || '', e.tipo_empresa, stLabel(e),
       e.funcionarios || 0, e.tem_adiantamento ? 'Sim' : 'Não',
       e.data_inicio ? e.data_inicio.split('-').reverse().join('/') : '',
       e.data_fim ? e.data_fim.split('-').reverse().join('/') : '',
-      an ? an.nome : ''
+      an ? nomeAnalista(an) : ''
     ]);
   });
 
@@ -2706,10 +2726,10 @@ async function renderCarteiras(el, isAdmin) {
 
   // Linhas da tabela
   const rows = emps.map(emp => {
-    const an   = ANALISTAS.find(a => a.id === emp._analista_id);
+    const an   = ANALISTAS_TODOS.find(a => a.id === emp._analista_id);
     const smov = !emp._movimento;
     const nm   = emp.razao_social.length > 22 ? emp.razao_social.slice(0,22) + '…' : emp.razao_social;
-    const anNm = an ? ' · ' + an.nome.split(' ')[0] : '';
+    const anNm = an ? ' · ' + an.nome.split(' ')[0] + (an.ativo === false ? ' (inativo)' : '') : '';
 
     const cells = ATIVS.map(atv => {
       const ent = idx[emp.id + '|' + atv.id];
@@ -2761,10 +2781,15 @@ async function renderCarteiras(el, isAdmin) {
   }).join('');
 
   // Filtros
+  // IDs de analistas com pelo menos 1 empresa vinculada nesta competência —
+  // usado para não poluir o dropdown com inativos sem dado no mês selecionado.
+  const analistasComDadoNoMes = new Set(empsComAtributos.map(e => e._analista_id));
   const analOpts = `<option value="todos" ${F_CART_ANAL==='todos'?'selected':''}>Todos analistas</option>` +
-    ANALISTAS.map(a =>
-      `<option value="${a.id}" ${F_CART_ANAL===a.id?'selected':''}>${escHtml(a.nome)}</option>`
-    ).join('');
+    ANALISTAS_TODOS
+      .filter(a => a.ativo !== false || analistasComDadoNoMes.has(a.id))
+      .map(a =>
+        `<option value="${a.id}" ${F_CART_ANAL===a.id?'selected':''}>${escHtml(nomeAnalista(a))}</option>`
+      ).join('');
 
   const reRenderFn = isAdmin ? 'renderAdminCart()' : 'renderGestorCart()';
 
@@ -2852,11 +2877,11 @@ function exportCarteiras() {
   const aoa = [header];
 
   emps.forEach(emp => {
-    const an = ANALISTAS.find(a => a.id === emp._analista_id);
+    const an = ANALISTAS_TODOS.find(a => a.id === emp._analista_id);
     const row = [
       emp.codigo,
       emp.razao_social || '',
-      an ? an.nome : '',
+      an ? nomeAnalista(an) : '',
       emp._funcionarios || 0,
       emp._movimento ? 'Com movimento' : 'Sem movimento',
       emp._adiantamento ? 'Sim' : 'Não'
@@ -3122,12 +3147,16 @@ async function renderExec() {
   const totalFunc = vigentes.reduce((s, e) => s + funcOf(e), 0);
 
   // 4. Por analista (sobre vigentes, usando analista histórico da competência)
-  const perAnalyst = ANALISTAS.map(a => {
+  // Inclui inativos, mas só quando têm dados na competência selecionada —
+  // ativos sempre aparecem (mesmo com 0), inativos só se qtd > 0, para não
+  // poluir o ranking com todo ex-funcionário para sempre.
+  const perAnalyst = ANALISTAS_TODOS.map(a => {
     const ae   = vigentes.filter(e => analOf(e) === a.id);
     const func = ae.reduce((s, e) => s + funcOf(e), 0);
     const pctCart = ativas > 0 ? Math.round(ae.length / ativas * 100) : 0;
     return { ...a, qtd: ae.length, func, pctCart };
-  }).sort((a, b) => b.qtd - a.qtd);
+  }).filter(a => a.ativo !== false || a.qtd > 0)
+    .sort((a, b) => b.qtd - a.qtd);
 
   // 5. Produção da competência ativa
   let prodStats = null;
@@ -3205,7 +3234,7 @@ async function renderExec() {
           return `<div class="arow">
             <div class="rank-num">${i+1}</div>
             <div>
-              <div class="aname">${escHtml(a.nome)}</div>
+              <div class="aname">${escHtml(nomeAnalista(a))}</div>
               <div class="ameta">${a.func} vidas · ${a.pctCart}% da carteira</div>
             </div>
             <div class="apw">
@@ -3223,7 +3252,7 @@ async function renderExec() {
           return `<div class="arow">
             <div class="rank-num">${i+1}</div>
             <div>
-              <div class="aname">${escHtml(a.nome)}</div>
+              <div class="aname">${escHtml(nomeAnalista(a))}</div>
               <div class="ameta">${a.qtd} emp · ${pctBar}% das vidas</div>
             </div>
             <div class="apw">
@@ -3461,6 +3490,15 @@ function escHtml(s) {
 }
 function escAttr(s) {
   return String(s || '').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Retorna o nome do analista pronto para exibição, marcando "(inativo)"
+// quando o objeto veio de ANALISTAS_TODOS e ativo === false. Objetos vindos
+// de ANALISTAS (só ativos) não têm o campo 'ativo', então o operador ?.
+// evita marcar por engano.
+function nomeAnalista(a) {
+  if (!a) return '';
+  return a.ativo === false ? `${a.nome} (inativo)` : a.nome;
 }
 
 let _toastT;

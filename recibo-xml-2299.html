@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recibo Oficial eSocial - S-2299</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  (async function dpGuard() {
+    const SUPA_URL = 'https://lpktdwfwlrqzyrvxcuum.supabase.co';
+    const SUPA_KEY = 'sb_publishable_6ohdnk6vaoiqtUC_Tq66OQ_wFV7evK0';
+    const sbGuard = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+    const { data: { session } } = await sbGuard.auth.getSession();
+    if (!session) window.location.href = '/index.html';
+  })();
+</script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0d7377;
+      --primary-hover: #0a5d61;
+      --primary-dark: #0a5d61;
+      --bg-color: #f3f4f6;
+      --card-bg: #ffffff;
+      --text-main: #111827;
+      --text-muted: #6b7280;
+      --border-color: #e5e7eb;
+      
+      --success-bg: #dcfce7;
+      --success-text: #166534;
+      --warning-bg: #fef3c7;
+      --warning-text: #92400e;
+      --error-bg: #fee2e2;
+      --error-text: #991b1b;
+    }
+
+    /* Header DP+ — idêntico ao <header> do index.html */
+    header{
+      background:#111827; color:#ffffff;
+      height:52px; padding:0 20px;
+      display:flex; align-items:center; justify-content:space-between;
+      position:sticky; top:0; z-index:100;
+    }
+    .hd-l{display:flex;align-items:center;gap:14px}
+    .hd-logo{font-size:17px;font-weight:800;letter-spacing:-.5px}
+    .hd-logo span{color:#22d3ee}
+    .hd-crumb{font-size:12px;padding:3px 10px;background:rgba(255,255,255,.08);border-radius:20px;color:rgba(255,255,255,.65)}
+    .hd-crumb b{color:#ffffff;font-weight:600}
+    .back-link{
+      font-size:12px;color:rgba(255,255,255,.65);text-decoration:none;font-weight:600;
+      padding:5px 12px;border-radius:6px;background:rgba(255,255,255,.1);
+      transition:background .15s;
+    }
+    .back-link:hover{background:rgba(255,255,255,.18);color:#ffffff}
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background-color: var(--bg-color); 
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+    
+    .container { 
+      max-width: 900px; 
+      margin: 0 auto; 
+      padding: 40px 20px;
+    }
+    
+    /* Toolbar */
+    .toolbar { 
+      display: flex; 
+      gap: 16px; 
+      margin-bottom: 24px; 
+      align-items: center;
+      background: var(--card-bg);
+      padding: 16px 24px;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+      transition: transform 0.2s ease;
+    }
+    .toolbar:hover {
+      transform: translateY(-2px);
+    }
+    
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 4px rgba(13, 115, 119, 0.3);
+    }
+    .btn:hover { background: var(--primary-hover); box-shadow: 0 4px 8px rgba(13, 115, 119, 0.4); }
+    .btn-outline {
+      background: transparent;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      box-shadow: none;
+    }
+    .btn-outline:hover { background: var(--bg-color); box-shadow: none; }
+    
+    input[type="file"] {
+      display: none;
+    }
+    .file-upload-label {
+      background: var(--card-bg);
+      border: 2px dashed var(--primary);
+      color: var(--primary);
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-block;
+    }
+    .file-upload-label:hover { background: #e6f4f4; }
+    
+    /* Receipt Card */
+    .receipt-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .receipt-header {
+      background: linear-gradient(135deg, #0a5d61 0%, #0d7377 100%);
+      color: white;
+      padding: 32px;
+      text-align: center;
+      position: relative;
+    }
+    .receipt-header h1 { 
+      font-size: 28px; 
+      font-weight: 700; 
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+    .receipt-header p {
+      color: #b2e0e0;
+      font-size: 16px;
+      font-weight: 500;
+    }
+    
+    /* Status Bar */
+    .status-bar {
+      padding: 20px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      background: #fafafa;
+    }
+    .status-title {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .status-message {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    .badge {
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .badge.ok { background: var(--success-bg); color: var(--success-text); }
+    .badge.warn { background: var(--warning-bg); color: var(--warning-text); }
+    .badge.err { background: var(--error-bg); color: var(--error-text); }
+    
+    /* Sections */
+    .section {
+      padding: 28px 32px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .section:last-child {
+      border-bottom: none;
+    }
+    .section h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #0a5d61;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section h2::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 18px;
+      background: #0d7377;
+      border-radius: 4px;
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+    .item {
+      display: flex;
+      flex-direction: column;
+    }
+    .full-width { grid-column: 1 / -1; }
+    
+    .label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .value {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-main);
+      background: #f9fafb;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #f3f4f6;
+      word-break: break-word;
+    }
+    .value.mono {
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    
+    /* Warning Box */
+    .warning-box {
+      margin-top: 16px;
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 16px;
+      border-radius: 0 8px 8px 0;
+      display: none;
+    }
+    .warning-box.active {
+      display: block;
+      animation: fadeIn 0.4s ease-out;
+    }
+    .warning-title {
+      font-weight: 700;
+      color: #b45309;
+      margin-bottom: 8px;
+      font-size: 14px;
+      text-transform: uppercase;
+    }
+    .warning-text {
+      color: #92400e;
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Print Styles */
+    @media print {
+      body { 
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        background-color: var(--bg-color) !important;
+        padding: 0; 
+      }
+      .container { 
+        max-width: 100%; 
+        padding: 20px;
+      }
+      .toolbar { 
+        display: none !important; 
+      }
+      header {
+        display: none !important;
+      }
+      .receipt-card {
+        page-break-inside: avoid;
+      }
+    }
+    
+    /* Initial empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 16px;
+      color: #cbd5e1;
+    }
+    .content-wrapper { display: none; }
+    .content-wrapper.active { display: block; animation: fadeIn 0.5s ease-out; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="hd-l">
+      <div class="hd-logo">DP<span>+</span></div>
+      <div class="hd-crumb">Ferramentas / <b>Recibo XML 2299</b></div>
+    </div>
+    <a class="back-link" href="ferramentas.html">← Voltar às Ferramentas</a>
+  </header>
+
+  <div class="container">
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <label for="xmlFile" class="file-upload-label">
+        <svg style="width:16px; height:16px; vertical-align:middle; margin-right:8px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+        Selecionar XML
+      </label>
+      <input id="xmlFile" type="file" accept=".xml" />
+      
+      <button class="btn btn-outline" onclick="clearFields()" id="btnClear" style="display:none;">Limpar</button>
+      <div style="flex-grow: 1;"></div>
+      <button class="btn" onclick="window.print()" id="btnPrint" style="display:none;">
+        <svg style="width:16px; height:16px; vertical-align:middle; margin-right:8px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+        Imprimir Recibo (PDF)
+      </button>
+    </div>
+
+    <!-- Receipt Card -->
+    <div class="receipt-card">
+      <div class="receipt-header">
+        <h1>Recibo de Entrega do eSocial</h1>
+        <p>Evento S-2299 - Desligamento</p>
+      </div>
+      
+      <!-- Empty State -->
+      <div class="empty-state" id="emptyState">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+        <h3>Nenhum arquivo processado</h3>
+        <p style="margin-top: 8px;">Por favor, selecione um arquivo XML de retorno do eSocial para visualizar o recibo.</p>
+      </div>
+
+      <!-- Content -->
+      <div class="content-wrapper" id="receiptContent">
+        <!-- Status Bar -->
+        <div class="status-bar">
+          <div>
+            <div class="status-title">Status do Processamento</div>
+            <div class="status-message" id="statusText">-</div>
+          </div>
+          <div id="statusBadge" class="badge">PENDENTE</div>
+        </div>
+        
+        <!-- Warning Area -->
+        <div id="warningArea" class="warning-box">
+          <div class="warning-title">⚠️ Advertência / Ocorrência Retornada</div>
+          <div class="warning-text" id="warningText"></div>
+        </div>
+
+        <!-- Identificação do Evento -->
+        <div class="section">
+          <h2>Informações do Recibo</h2>
+          <div class="grid">
+            <div class="item">
+              <span class="label">Número do Recibo</span>
+              <span class="value mono" id="nrRecibo">-</span>
+            </div>
+            <div class="item">
+              <span class="label">ID do Evento</span>
+              <span class="value mono" id="idEvento">-</span>
+            </div>
+            <div class="item">
+              <span class="label">Data/Hora Recepção</span>
+              <span class="value" id="dhRecepcao">-</span>
+            </div>
+            <div class="item">
+              <span class="label">Data/Hora Processamento</span>
+              <span class="value" id="dhProcessamento">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Identificação do Trabalhador -->
+        <div class="section">
+          <h2>Identificação do Trabalhador e Desligamento</h2>
+          <div class="grid">
+            <div class="item">
+              <span class="label">CPF do Trabalhador</span>
+              <span class="value mono" id="cpfTrab">-</span>
+            </div>
+            <div class="item">
+              <span class="label">Matrícula eSocial</span>
+              <span class="value mono" id="matricula">-</span>
+            </div>
+            <div class="item">
+              <span class="label">Data de Desligamento</span>
+              <span class="value" id="dtDeslig">-</span>
+            </div>
+            <div class="item">
+              <span class="label">Código de Retorno</span>
+              <span class="value" id="cdResposta">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function textByTag(doc, tag) {
+      const el = doc.getElementsByTagName(tag)[0];
+      return el ? el.textContent.trim() : '-';
+    }
+
+    function formatDateStr(isoStr) {
+      if (!isoStr || isoStr === '-') return '-';
+      try {
+        const d = new Date(isoStr);
+        if (isNaN(d.getTime())) return isoStr;
+        return d.toLocaleString('pt-BR');
+      } catch(e) {
+        return isoStr;
+      }
+    }
+    
+    function formatDateOnlyStr(isoStr) {
+      if (!isoStr || isoStr === '-') return '-';
+      try {
+        // Handle "YYYY-MM-DD" safely without timezone shifts
+        const parts = isoStr.split('-');
+        if(parts.length === 3) {
+          return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+        return isoStr;
+      } catch(e) {
+        return isoStr;
+      }
+    }
+
+    function clearFields() {
+      $('xmlFile').value = '';
+      $('emptyState').style.display = 'block';
+      $('receiptContent').classList.remove('active');
+      $('btnClear').style.display = 'none';
+      $('btnPrint').style.display = 'none';
+      $('warningArea').classList.remove('active');
+    }
+
+    function setStatus(code, msg) {
+      $('cdResposta').textContent = code || '-';
+
+      const badge = $('statusBadge');
+      if (code === '201') {
+        badge.textContent = 'ACEITO';
+        badge.className = 'badge ok';
+        $('statusText').textContent = 'Evento processado com sucesso';
+      } else if (code === '202') {
+        badge.textContent = 'ACEITO COM ADVERTÊNCIA';
+        badge.className = 'badge warn';
+        $('statusText').textContent = 'Evento processado com advertências';
+      } else {
+        badge.textContent = 'REJEITADO / ERRO';
+        badge.className = 'badge err';
+        $('statusText').textContent = msg || 'Evento rejeitado pelo eSocial';
+      }
+    }
+
+    $('xmlFile').addEventListener('change', function () {
+      const file = this.files[0];
+      if (!file) {
+        clearFields();
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const xmlString = e.target.result;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xmlString, 'application/xml');
+
+        const parseError = doc.getElementsByTagName('parsererror')[0];
+        if (parseError) {
+          alert('Arquivo XML inválido ou mal formatado.');
+          clearFields();
+          return;
+        }
+
+        // Show content, hide empty state
+        $('emptyState').style.display = 'none';
+        $('receiptContent').classList.add('active');
+        $('btnClear').style.display = 'inline-flex';
+        $('btnPrint').style.display = 'inline-flex';
+
+        // Extract Basic Info
+        $('idEvento').textContent = textByTag(doc, 'Id') || textByTag(doc, 'id') || '-';
+        $('nrRecibo').textContent = textByTag(doc, 'nrRecibo') || '-';
+        
+        // Trabalhador e Desligamento
+        const cpf = textByTag(doc, 'cpfTrab');
+        $('cpfTrab').textContent = cpf !== '-' ? cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : '-';
+        $('matricula').textContent = textByTag(doc, 'matricula') || '-';
+        $('dtDeslig').textContent = formatDateOnlyStr(textByTag(doc, 'dtDeslig'));
+        
+        // Datas e Horários
+        $('dhRecepcao').textContent = formatDateStr(textByTag(doc, 'dhRecepcao'));
+        $('dhProcessamento').textContent = formatDateStr(textByTag(doc, 'dhProcessamento'));
+
+        // Status
+        const code = textByTag(doc, 'cdResposta');
+        const msg = textByTag(doc, 'descResposta') !== '-' ? textByTag(doc, 'descResposta') : textByTag(doc, 'mensagem');
+        setStatus(code, msg);
+
+        // Ocorrências / Advertências
+        const ocorrencias = doc.getElementsByTagName('ocorrencia');
+        let txtOcorrencias = '';
+        
+        if (ocorrencias.length > 0) {
+          for(let i = 0; i < ocorrencias.length; i++) {
+            const desc = ocorrencias[i].getElementsByTagName('descricao')[0];
+            if (desc) {
+              txtOcorrencias += desc.textContent.trim() + '\n\n';
+            }
+          }
+        }
+        
+        // Fallback para 'erro' tag caso seja uma versão diferente do XML
+        if (!txtOcorrencias) {
+          const erros = Array.from(doc.getElementsByTagName('erro'))
+            .map(x => x.textContent.trim())
+            .filter(Boolean);
+          if(erros.length) {
+            txtOcorrencias = erros.join('\n\n');
+          }
+        }
+
+        if (txtOcorrencias && code === '202') {
+          $('warningText').textContent = txtOcorrencias.trim();
+          $('warningArea').classList.add('active');
+        } else if (txtOcorrencias && code !== '201') {
+          // It's an error
+          $('warningText').textContent = txtOcorrencias.trim();
+          $('warningArea').classList.add('active');
+          $('warningArea').style.background = '#fef2f2';
+          $('warningArea').style.borderLeftColor = '#ef4444';
+          $('warningArea').querySelector('.warning-title').style.color = '#991b1b';
+          $('warningArea').querySelector('.warning-title').textContent = '❌ Erro Retornado';
+          $('warningArea').querySelector('.warning-text').style.color = '#7f1d1d';
+        } else {
+          $('warningArea').classList.remove('active');
+          // Reset styles just in case
+          $('warningArea').style.background = '';
+          $('warningArea').style.borderLeftColor = '';
+          $('warningArea').querySelector('.warning-title').style.color = '';
+          $('warningArea').querySelector('.warning-title').textContent = '⚠️ Advertência / Ocorrência Retornada';
+          $('warningArea').querySelector('.warning-text').style.color = '';
+        }
+      };
+      reader.readAsText(file, 'UTF-8');
+    });
+  </script>
+</body>
+</html>

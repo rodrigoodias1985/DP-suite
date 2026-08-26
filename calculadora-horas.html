@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calculadora de Horas</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  (async function dpGuard() {
+    const SUPA_URL = 'https://lpktdwfwlrqzyrvxcuum.supabase.co';
+    const SUPA_KEY = 'sb_publishable_6ohdnk6vaoiqtUC_Tq66OQ_wFV7evK0';
+    const sbGuard = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+    const { data: { session } } = await sbGuard.auth.getSession();
+    if (!session) window.location.href = '/index.html';
+  })();
+</script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #111827;
+      min-height: 100vh;
+    }
+
+    /* Header DP+ — idêntico ao <header> do index.html */
+    header {
+      background: #111827; color: #ffffff;
+      height: 52px; padding: 0 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .hd-l { display: flex; align-items: center; gap: 14px; }
+    .hd-logo { font-size: 17px; font-weight: 800; letter-spacing: -.5px; }
+    .hd-logo span { color: #22d3ee; }
+    .hd-crumb { font-size: 12px; padding: 3px 10px; background: rgba(255,255,255,.08); border-radius: 20px; color: rgba(255,255,255,.65); }
+    .hd-crumb b { color: #ffffff; font-weight: 600; }
+    .back-link {
+      font-size: 12px; color: rgba(255,255,255,.65); text-decoration: none; font-weight: 600;
+      padding: 5px 12px; border-radius: 6px; background: rgba(255,255,255,.1);
+      transition: background .15s;
+    }
+    .back-link:hover { background: rgba(255,255,255,.18); color: #ffffff; }
+
+    .tools-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 30px 16px;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    /* ── CALCULADORA DE HORAS ── */
+    .calc {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 28px 24px;
+      width: 340px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+
+    .title {
+      text-align: center;
+      color: #6b7280;
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .display {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px 16px 14px;
+      margin-bottom: 20px;
+      min-height: 100px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-end;
+    }
+
+    .display .expression {
+      color: #9ca3af;
+      font-size: 14px;
+      min-height: 20px;
+      word-break: break-all;
+      text-align: right;
+    }
+
+    .display .current {
+      color: #111827;
+      font-size: 32px;
+      font-weight: 300;
+      margin-top: 6px;
+      word-break: break-all;
+      text-align: right;
+    }
+
+    .display .result {
+      color: #16a34a;
+      font-size: 22px;
+      margin-top: 4px;
+      min-height: 28px;
+      text-align: right;
+    }
+
+    .hint {
+      color: #9ca3af;
+      font-size: 11px;
+      text-align: center;
+      margin-bottom: 14px;
+      line-height: 1.6;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 18px 0;
+      font-size: 18px;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.1s, background .15s;
+      font-weight: 500;
+    }
+
+    button:active { transform: scale(0.93); opacity: 0.85; }
+
+    .btn-num { background: #f3f4f6; color: #111827; }
+    .btn-num:hover { background: #e5e7eb; }
+
+    .btn-op { background: #e6f4f4; color: #0a5d61; font-size: 22px; }
+    .btn-op:hover { background: #cceaea; }
+
+    .btn-colon { background: #eff6ff; color: #2563eb; font-size: 20px; }
+    .btn-colon:hover { background: #dbeafe; }
+
+    .btn-clear { background: #fee2e2; color: #dc2626; font-size: 15px; }
+    .btn-clear:hover { background: #fecaca; }
+
+    .btn-back { background: #fef3c7; color: #b45309; font-size: 15px; }
+    .btn-back:hover { background: #fde68a; }
+
+    .btn-equal {
+      background: #0d7377;
+      color: #ffffff;
+      font-size: 22px;
+      grid-column: span 2;
+    }
+    .btn-equal:hover { background: #0a5d61; }
+
+    .error { color: #dc2626 !important; font-size: 16px !important; }
+
+    /* ── HISTÓRICO ── */
+    .history-panel {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 24px 20px;
+      width: 280px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+      display: flex;
+      flex-direction: column;
+      max-height: 620px;
+    }
+
+    .history-title {
+      text-align: center;
+      color: #6b7280;
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .history-list::-webkit-scrollbar { width: 4px; }
+    .history-list::-webkit-scrollbar-track { background: transparent; }
+    .history-list::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+    .history-item {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .history-item:hover { background: #e6f4f4; }
+
+    .history-item .h-expr { color: #6b7280; font-size: 12px; margin-bottom: 4px; }
+    .history-item .h-result { color: #16a34a; font-size: 18px; font-weight: 500; }
+
+    .history-empty {
+      color: #9ca3af;
+      font-size: 13px;
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .btn-clear-history {
+      margin-top: 14px;
+      background: #f3f4f6;
+      color: #6b7280;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-weight: 500;
+    }
+
+    .btn-clear-history:hover { background: #e5e7eb; }
+
+    /* ── CALCULADORA DE JORNADA ── */
+    .jornada-panel {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 28px 24px;
+      width: 340px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+
+    .jornada-form {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field-group label {
+      color: #6b7280;
+      font-size: 12px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .field-group input {
+      background: #f9fafb;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 14px 16px;
+      color: #111827;
+      font-size: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+
+    .field-group input:focus { border-color: #0d7377; }
+    .field-group input::placeholder { color: #9ca3af; }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .btn-calcular-jornada {
+      background: #0d7377;
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.15s, transform 0.1s;
+      margin-top: 4px;
+      letter-spacing: 1px;
+    }
+
+    .btn-calcular-jornada:hover { background: #0a5d61; }
+    .btn-calcular-jornada:active { transform: scale(0.97); }
+
+    .btn-limpar-jornada {
+      background: #f3f4f6;
+      color: #6b7280;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.15s;
+    }
+
+    .btn-limpar-jornada:hover { background: #e5e7eb; }
+
+    .jornada-resultado {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px 16px;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .jornada-resultado.visivel { display: flex; }
+
+    .resultado-linha {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 10px;
+    }
+
+    .resultado-linha:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .resultado-linha .r-label { color: #6b7280; font-size: 13px; }
+    .resultado-linha .r-value { color: #16a34a; font-size: 20px; font-weight: 600; }
+
+    .resultado-linha.destaque .r-label { color: #374151; font-size: 14px; }
+    .resultado-linha.destaque .r-value { color: #0d7377; font-size: 24px; }
+
+    .noturna-badge {
+      background: #fef3c7;
+      color: #92400e;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      text-align: center;
+      display: none;
+    }
+
+    .noturna-badge.visivel { display: block; }
+
+    .jornada-erro {
+      color: #dc2626;
+      font-size: 13px;
+      text-align: center;
+      display: none;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="hd-l">
+      <div class="hd-logo">DP<span>+</span></div>
+      <div class="hd-crumb">Ferramentas / <b>Calculadora de Horas e Jornadas</b></div>
+    </div>
+    <a class="back-link" href="ferramentas.html">← Voltar às Ferramentas</a>
+  </header>
+
+  <div class="tools-wrap">
+
+<!-- Calculadora de Horas -->
+<div class="calc">
+  <div class="title">⏱ Calculadora de Horas</div>
+
+  <div class="display">
+    <div class="expression" id="expression"></div>
+    <div class="current" id="current">0:00</div>
+    <div class="result" id="result"></div>
+  </div>
+
+  <div class="hint">
+    Formato: HH:MM &nbsp;|&nbsp; Ex: 8:43 + 3:46 &nbsp;|&nbsp; 44:00 ÷ 5<br>
+    <span style="color:#9ca3af">Enter = calcular &nbsp;|&nbsp; Delete = limpar</span>
+  </div>
+
+  <div class="buttons">
+    <button class="btn-clear" onclick="clearAll()">C</button>
+    <button class="btn-back" onclick="backspace()">⌫</button>
+    <button class="btn-op" onclick="addOp('÷')">÷</button>
+    <button class="btn-op" onclick="addOp('×')">×</button>
+
+    <button class="btn-num" onclick="addChar('7')">7</button>
+    <button class="btn-num" onclick="addChar('8')">8</button>
+    <button class="btn-num" onclick="addChar('9')">9</button>
+    <button class="btn-op" onclick="addOp('-')">−</button>
+
+    <button class="btn-num" onclick="addChar('4')">4</button>
+    <button class="btn-num" onclick="addChar('5')">5</button>
+    <button class="btn-num" onclick="addChar('6')">6</button>
+    <button class="btn-op" onclick="addOp('+')">+</button>
+
+    <button class="btn-num" onclick="addChar('1')">1</button>
+    <button class="btn-num" onclick="addChar('2')">2</button>
+    <button class="btn-num" onclick="addChar('3')">3</button>
+    <button class="btn-colon" onclick="addChar(':')">:</button>
+
+    <button class="btn-num" onclick="addChar('0')" style="grid-column: span 2;">0</button>
+    <button class="btn-equal" onclick="calculate()">=</button>
+  </div>
+</div>
+
+<!-- Histórico -->
+<div class="history-panel">
+  <div class="history-title">📋 Histórico</div>
+  <div class="history-list" id="historyList">
+    <div class="history-empty">Nenhum cálculo ainda.</div>
+  </div>
+  <button class="btn-clear-history" onclick="clearHistory()">Limpar histórico</button>
+</div>
+
+<!-- Calculadora de Jornada -->
+<div class="jornada-panel">
+  <div class="title">📅 Calculadora de Jornada</div>
+
+  <div class="jornada-form">
+
+    <div class="field-row">
+      <div class="field-group">
+        <label>Entrada</label>
+        <input type="time" id="j-entrada" />
+      </div>
+      <div class="field-group">
+        <label>Saída</label>
+        <input type="time" id="j-saida" />
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field-group">
+        <label>Intervalo</label>
+        <input type="time" id="j-intervalo" value="01:00" />
+      </div>
+      <div class="field-group">
+        <label>Dias / Semana</label>
+        <input type="number" id="j-dias" min="1" max="7" value="5" placeholder="5" />
+      </div>
+    </div>
+
+    <button class="btn-calcular-jornada" onclick="calcularJornada()">CALCULAR</button>
+    <button class="btn-limpar-jornada" onclick="limparJornada()">Limpar</button>
+
+    <div class="jornada-erro" id="jornada-erro"></div>
+    <div class="noturna-badge" id="noturna-badge">🌙 Jornada noturna detectada — saída no dia seguinte</div>
+
+    <div class="jornada-resultado" id="jornada-resultado">
+      <div class="resultado-linha destaque">
+        <span class="r-label">⏱ Jornada Diária</span>
+        <span class="r-value" id="r-diaria">--</span>
+      </div>
+      <div class="resultado-linha">
+        <span class="r-label">📆 Jornada Semanal</span>
+        <span class="r-value" id="r-semanal">--</span>
+      </div>
+      <div class="resultado-linha">
+        <span class="r-label">
+          📅 Jornada Mensal
+          <span style="font-size:11px;color:#9ca3af">(5 semanas / CLT)</span>
+        </span>
+        <span class="r-value" id="r-mensal">--</span>
+      </div>
+    </div>
+
+  </div>
+
+  </div>
+
+  </div>
+
+<script>
+  /* ── CALCULADORA DE HORAS ── */
+  let expression = '';
+  const OPS = ['+', '-', '×', '÷'];
+  let history = [];
+
+  function updateDisplay() {
+    document.getElementById('expression').textContent = expression;
+  }
+
+  function addChar(ch) {
+    if (ch === ':') {
+      const tokens = splitTokens(expression);
+      const last = tokens[tokens.length - 1] || '';
+      if (last.includes(':')) return;
+    }
+    expression += ch;
+    document.getElementById('current').textContent = expression;
+    document.getElementById('current').classList.remove('error');
+    document.getElementById('result').textContent = '';
+    updateDisplay();
+  }
+
+  function addOp(op) {
+    if (expression === '') return;
+    const last = expression[expression.length - 1];
+    if (OPS.includes(last) || last === ' ') {
+      expression = expression.slice(0, -3);
+    }
+    expression += ` ${op} `;
+    document.getElementById('current').textContent = expression;
+    document.getElementById('result').textContent = '';
+    updateDisplay();
+  }
+
+  function backspace() {
+    if (expression.endsWith(' ')) {
+      expression = expression.slice(0, -3);
+    } else {
+      expression = expression.slice(0, -1);
+    }
+    document.getElementById('current').textContent = expression || '0:00';
+    document.getElementById('result').textContent = '';
+    updateDisplay();
+  }
+
+  function clearAll() {
+    expression = '';
+    document.getElementById('current').textContent = '0:00';
+    document.getElementById('current').classList.remove('error');
+    document.getElementById('result').textContent = '';
+    document.getElementById('expression').textContent = '';
+  }
+
+  function toMinutes(str) {
+    str = str.trim();
+    if (str.includes(':')) {
+      const parts = str.split(':');
+      const h = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      if (isNaN(h) || isNaN(m)) throw new Error('Formato inválido');
+      return h * 60 + m;
+    } else {
+      const n = parseFloat(str);
+      if (isNaN(n)) throw new Error('Número inválido');
+      return n;
+    }
+  }
+
+  function toHHMM(totalMinutes) {
+    const neg = totalMinutes < 0;
+    const abs = Math.abs(Math.round(totalMinutes));
+    const h = Math.floor(abs / 60);
+    const m = abs % 60;
+    return (neg ? '-' : '') + h + ':' + String(m).padStart(2, '0');
+  }
+
+  function splitTokens(expr) {
+    return expr.split(/\s+/).filter(t => t !== '');
+  }
+
+  function calculate() {
+    try {
+      const tokens = splitTokens(expression);
+      if (tokens.length === 0) return;
+
+      let result = toMinutes(tokens[0]);
+      let i = 1;
+
+      while (i < tokens.length) {
+        const op = tokens[i];
+        const next = tokens[i + 1];
+        if (!next) throw new Error('Expressão incompleta');
+
+        if (op === '+') result += toMinutes(next);
+        else if (op === '-') result -= toMinutes(next);
+        else if (op === '×') {
+          const fator = parseFloat(next);
+          if (isNaN(fator)) throw new Error('Multiplicador inválido');
+          result = result * fator;
+        } else if (op === '÷') {
+          const divisor = parseFloat(next);
+          if (isNaN(divisor) || divisor === 0) throw new Error('Divisão inválida');
+          result = result / divisor;
+        }
+        i += 2;
+      }
+
+      const resultStr = toHHMM(result);
+      document.getElementById('result').textContent = '= ' + resultStr;
+      document.getElementById('result').classList.remove('error');
+
+      addToHistory(expression, resultStr);
+
+      expression = resultStr;
+      document.getElementById('current').textContent = resultStr;
+      updateDisplay();
+
+    } catch (e) {
+      const el = document.getElementById('current');
+      el.textContent = 'Erro';
+      el.classList.add('error');
+      document.getElementById('result').textContent = e.message;
+    }
+  }
+
+  function addToHistory(expr, result) {
+    const now = new Date();
+    const time = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    history.unshift({ expr, result, time });
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const list = document.getElementById('historyList');
+    if (history.length === 0) {
+      list.innerHTML = '<div class="history-empty">Nenhum cálculo ainda.</div>';
+      return;
+    }
+    list.innerHTML = history.map(item => `
+      <div class="history-item" onclick="reuseResult('${item.result}')" title="Clique para reutilizar o resultado">
+        <div class="h-expr">${item.time} &nbsp;·&nbsp; ${item.expr}</div>
+        <div class="h-result">= ${item.result}</div>
+      </div>
+    `).join('');
+  }
+
+  function reuseResult(result) {
+    expression = result;
+    document.getElementById('current').textContent = result;
+    document.getElementById('current').classList.remove('error');
+    document.getElementById('result').textContent = '';
+    document.getElementById('expression').textContent = result;
+  }
+
+  function clearHistory() {
+    history = [];
+    renderHistory();
+  }
+
+  /* ── CALCULADORA DE JORNADA ── */
+  function timeInputToMinutes(id) {
+    const val = document.getElementById(id).value;
+    if (!val) return null;
+    const [h, m] = val.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  function calcularJornada() {
+    const erro = document.getElementById('jornada-erro');
+    const resultado = document.getElementById('jornada-resultado');
+    const badge = document.getElementById('noturna-badge');
+
+    erro.style.display = 'none';
+    resultado.classList.remove('visivel');
+    badge.classList.remove('visivel');
+
+    const entrada = timeInputToMinutes('j-entrada');
+    let saida = timeInputToMinutes('j-saida');
+    const intervalo = timeInputToMinutes('j-intervalo');
+    const dias = parseInt(document.getElementById('j-dias').value, 10);
+
+    if (entrada === null || saida === null) {
+      erro.textContent = 'Informe a entrada e a saída.';
+      erro.style.display = 'block';
+      return;
+    }
+
+    if (isNaN(dias) || dias < 1 || dias > 7) {
+      erro.textContent = 'Informe um número de dias válido (1 a 7).';
+      erro.style.display = 'block';
+      return;
+    }
+
+    // Detecta jornada noturna: saída menor que entrada = virada de dia
+    let noturna = false;
+    if (saida <= entrada) {
+      saida += 24 * 60;
+      noturna = true;
+    }
+
+    let diaria = saida - entrada - (intervalo || 0);
+
+    if (diaria <= 0) {
+      erro.textContent = 'A jornada calculada é inválida. Verifique entrada, saída e intervalo.';
+      erro.style.display = 'block';
+      return;
+    }
+
+    const semanal = diaria * dias;
+    const mensal = semanal * 5;
+
+    document.getElementById('r-diaria').textContent = toHHMM(diaria);
+    document.getElementById('r-semanal').textContent = toHHMM(semanal);
+    document.getElementById('r-mensal').textContent = toHHMM(mensal);
+
+    if (noturna) badge.classList.add('visivel');
+    resultado.classList.add('visivel');
+  }
+
+  function limparJornada() {
+    document.getElementById('j-entrada').value = '';
+    document.getElementById('j-saida').value = '';
+    document.getElementById('j-intervalo').value = '01:00';
+    document.getElementById('j-dias').value = '5';
+    document.getElementById('jornada-erro').style.display = 'none';
+    document.getElementById('noturna-badge').classList.remove('visivel');
+    document.getElementById('jornada-resultado').classList.remove('visivel');
+  }
+
+  /* ── TECLADO ── */
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.key >= '0' && e.key <= '9') addChar(e.key);
+    else if (e.key === ':') addChar(':');
+    else if (e.key === '+') addOp('+');
+    else if (e.key === '-') addOp('-');
+    else if (e.key === '*') addOp('×');
+    else if (e.key === '/') { e.preventDefault(); addOp('÷'); }
+    else if (e.key === 'Enter') { e.preventDefault(); calculate(); }
+    else if (e.key === 'Delete') clearAll();
+    else if (e.key === 'Backspace') backspace();
+    else if (e.key === 'Escape') clearAll();
+  });
+</script>
+
+</body>
+</html>

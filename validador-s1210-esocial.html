@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>eSocial S-1210 | Processador de Rendimentos</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  (async function dpGuard() {
+    const SUPA_URL = 'https://lpktdwfwlrqzyrvxcuum.supabase.co';
+    const SUPA_KEY = 'sb_publishable_6ohdnk6vaoiqtUC_Tq66OQ_wFV7evK0';
+    const sbGuard = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+    const { data: { session } } = await sbGuard.auth.getSession();
+    if (!session) window.location.href = '/index.html';
+  })();
+</script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+
+    :root {
+      --navy:    #111827;
+      --navy2:   #1f2937;
+      --blue:    #2563eb;
+      --accent:  #0d7377;
+      --accent-hover: #0a5d61;
+      --accent2: #16a34a;
+      --warn:    #d97706;
+      --danger:  #dc2626;
+      --bg:      #f3f4f6;
+      --card:    #ffffff;
+      --border:  #e5e7eb;
+      --text:    #111827;
+      --muted:   #6b7280;
+      --white:   #111827;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Header DP+ — idêntico ao <header> do index.html */
+    .app-header {
+      background: #111827; color: #ffffff;
+      height: 52px; padding: 0 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .hd-l { display: flex; align-items: center; gap: 14px; }
+    .hd-logo { font-size: 17px; font-weight: 800; letter-spacing: -.5px; font-family: 'DM Sans', sans-serif; }
+    .hd-logo span { color: #22d3ee; }
+    .hd-crumb { font-size: 12px; padding: 3px 10px; background: rgba(255,255,255,.08); border-radius: 20px; color: rgba(255,255,255,.65); font-family: 'DM Sans', sans-serif; }
+    .hd-crumb b { color: #ffffff; font-weight: 600; }
+    .back-link {
+      font-size: 12px; color: rgba(255,255,255,.65); text-decoration: none; font-weight: 600;
+      padding: 5px 12px; border-radius: 6px; background: rgba(255,255,255,.1);
+      transition: background .15s; font-family: 'DM Sans', sans-serif;
+    }
+    .back-link:hover { background: rgba(255,255,255,.18); color: #ffffff; }
+
+    .app { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px; }
+
+    .tool-header {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 28px; padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      gap: 16px; flex-wrap: wrap;
+    }
+    .logo { display: flex; align-items: center; gap: 14px; }
+    .logo-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+      box-shadow: 0 0 24px rgba(13,115,119,.25);
+    }
+    .logo-text h1 {
+      font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800;
+      color: var(--white); letter-spacing: -0.5px; line-height: 1;
+    }
+    .logo-text span {
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      color: var(--accent); letter-spacing: 2px; text-transform: uppercase;
+    }
+    .badge {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      padding: 4px 10px; border-radius: 20px;
+      background: rgba(13,115,119,.1); border: 1px solid rgba(13,115,119,.3);
+      color: var(--accent); letter-spacing: 1px; white-space: nowrap;
+    }
+
+    .upload-section { margin-bottom: 26px; }
+    .section-title {
+      font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+      color: var(--muted); letter-spacing: 3px; text-transform: uppercase;
+      margin-bottom: 16px; display: flex; align-items: center; gap: 10px;
+    }
+    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      padding: 38px 22px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .25s;
+      background: var(--card);
+      position: relative;
+      overflow: hidden;
+    }
+    .drop-zone::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(13,115,119,.05) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(13,115,119,.04);
+      box-shadow: 0 0 40px rgba(13,115,119,.10);
+    }
+    .drop-zone.dragover { transform: scale(1.01); }
+    .drop-icon {
+      font-size: 44px; margin-bottom: 10px;
+      display: block;
+      filter: drop-shadow(0 0 12px rgba(13,115,119,.35));
+    }
+    .drop-title {
+      font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700;
+      color: var(--white); margin-bottom: 8px;
+    }
+    .drop-sub { font-size: 13px; color: var(--muted); line-height: 1.6; }
+    .drop-sub strong { color: var(--accent); }
+    #file-input { display: none; }
+
+    .btn-upload {
+      display: inline-block; margin-top: 16px;
+      padding: 10px 24px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      color: #fff; font-weight: 700; font-size: 13px;
+      cursor: pointer; transition: all .2s; border: none;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .btn-upload:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(13,115,119,.3); }
+
+    .file-list { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .file-chip {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 12px; border-radius: 20px;
+      background: rgba(13,115,119,.08); border: 1px solid rgba(13,115,119,.2);
+      font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent);
+      animation: chipIn .2s ease;
+      max-width: 100%;
+    }
+    .file-chip .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px; }
+    .file-chip .remove {
+      cursor: pointer; color: var(--muted); transition: color .15s;
+      font-size: 14px; line-height: 1;
+    }
+    .file-chip .remove:hover { color: var(--danger); }
+    @keyframes chipIn { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
+
+    .process-bar {
+      display: flex; align-items: center; gap: 12px;
+      margin: 18px 0 22px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all .2s;
+      font-weight: 800;
+      letter-spacing: .2px;
+      font-family: 'Syne', sans-serif;
+      padding: 12px 16px;
+      font-size: 13px;
+    }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none !important; }
+
+    .btn-process {
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      color: #fff;
+      padding: 12px 22px;
+      box-shadow: 0 4px 20px rgba(22,163,74,.25);
+    }
+    .btn-process:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(22,163,74,.4); }
+
+    .btn-clear {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 600;
+    }
+    .btn-clear:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); transform: translateY(-1px); }
+
+    .btn-csv, .btn-xlsx {
+      background: rgba(13,115,119,.10);
+      border: 1px solid rgba(13,115,119,.25);
+      color: var(--accent);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700;
+    }
+    .btn-csv:hover:not(:disabled), .btn-xlsx:hover:not(:disabled) { transform: translateY(-1px); border-color: rgba(13,115,119,.45); }
+
+    .file-count {
+      margin-left: auto;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .file-count strong { color: var(--accent); font-size: 16px; }
+
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px; margin-bottom: 22px;
+    }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px;
+      position: relative; overflow: hidden;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent), transparent);
+    }
+    .stat-card:nth-child(2)::before { background: linear-gradient(90deg, var(--accent2), transparent); }
+    .stat-card:nth-child(3)::before { background: linear-gradient(90deg, var(--warn), transparent); }
+    .stat-card:nth-child(4)::before { background: linear-gradient(90deg, var(--danger), transparent); }
+    .stat-card:nth-child(5)::before { background: linear-gradient(90deg, #7c3aed, transparent); }
+    .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
+    .stat-value { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; color: var(--white); }
+    .stat-sub { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+    .table-wrapper {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+    .table-header {
+      padding: 18px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .table-title { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; color: var(--white); }
+    .table-tabs { display: flex; gap: 6px; }
+    .tab {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all .15s;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700;
+    }
+    .tab.active {
+      background: rgba(13,115,119,.14);
+      border-color: rgba(13,115,119,.25);
+      color: var(--accent);
+    }
+    .table-scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead tr { background: #f9fafb; }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    th {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-align: right;
+    }
+    th:first-child, td:first-child { text-align: left; }
+    td { text-align: right; color: var(--text); }
+    tbody tr:hover { background: #f9fafb; }
+    tbody tr.total-row { background: rgba(13,115,119,.08); font-weight: 700; color: var(--white); border-top: 2px solid rgba(13,115,119,.3); }
+    tbody tr.total-row td { color: #0a5d61; font-family: 'DM Mono', monospace; font-size: 11px; }
+    tbody tr.total-row td:first-child { color: var(--accent); }
+    .muted { color: var(--muted); }
+
+    .empty {
+      padding: 26px 18px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      border-top: 1px solid var(--border);
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-family: 'DM Sans', sans-serif;
+      color: var(--text);
+      z-index: 9999;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all .2s ease;
+      max-width: min(560px, calc(100vw - 36px));
+      pointer-events: none;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,.1), 0 8px 10px -6px rgba(0,0,0,.08);
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { border-color: rgba(22,163,74,.45); }
+    .toast.error { border-color: rgba(220,38,38,.55); }
+  </style>
+</head>
+
+<body>
+  <header class="app-header">
+    <div class="hd-l">
+      <div class="hd-logo">DP<span>+</span></div>
+      <div class="hd-crumb">Ferramentas / <b>Validador S-1210 Esocial</b></div>
+    </div>
+    <a class="back-link" href="ferramentas.html">← Voltar às Ferramentas</a>
+  </header>
+
+  <div class="app">
+    <div class="tool-header">
+      <div class="logo">
+        <div class="logo-icon">⚙</div>
+        <div class="logo-text">
+          <h1>eSocial S-1210</h1>
+          <span>PROCESSADOR DE RENDIMENTOS</span>
+        </div>
+      </div>
+      <div class="badge">CLIENT-SIDE • XML → CSV/XLSX</div>
+    </div>
+
+    <section class="upload-section">
+      <div class="section-title">Importação</div>
+
+      <div class="drop-zone" id="drop-zone">
+        <span class="drop-icon">📄</span>
+        <div class="drop-title">Arraste os XMLs aqui</div>
+        <div class="drop-sub">
+          Ou clique para selecionar. Aceita <strong>.xml</strong> do evento <strong>evtIrrfBenef (S-1210)</strong>.
+        </div>
+        <button class="btn-upload" type="button" id="btn-open">Selecionar arquivos</button>
+        <input id="file-input" type="file" accept=".xml,text/xml,application/xml" multiple />
+      </div>
+
+      <div class="file-list" id="file-list"></div>
+    </section>
+
+    <div class="process-bar">
+      <button class="btn btn-process" id="btn-process" disabled>Processar</button>
+      <button class="btn btn-clear" id="btn-clear" disabled>Limpar</button>
+
+      <span class="file-count">Arquivos: <strong id="file-count">0</strong></span>
+
+      <button class="btn btn-csv" id="btn-csv" disabled>⬇ Exportar CSV</button>
+      <button class="btn btn-xlsx" id="btn-xlsx" disabled>⬇ Exportar Excel (.xlsx)</button>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">CPF Beneficiário</div>
+        <div class="stat-value" id="stat-cpf">—</div>
+        <div class="stat-sub" id="stat-cnpj">CNPJ Empregador: —</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Registros (dmDev)</div>
+        <div class="stat-value" id="stat-registros">0</div>
+        <div class="stat-sub">Linhas extraídas dos XMLs</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Tributável</div>
+        <div class="stat-value" id="stat-trib">R$ 0,00</div>
+        <div class="stat-sub">Mensal + 13º</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Convênio (Incid. 67)</div>
+        <div class="stat-value" id="stat-convenio">R$ 0,00</div>
+        <div class="stat-sub">Total plano de saúde</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pensão Alimentícia</div>
+        <div class="stat-value" id="stat-pensao">R$ 0,00</div>
+        <div class="stat-sub">Total dedução pensão</div>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <div class="table-header">
+        <div class="table-title" id="table-title">Detalhamento (dmDev)</div>
+        <div class="table-tabs">
+          <button class="tab active" id="tab-det" type="button">Detalhamento</button>
+          <button class="tab" id="tab-conv" type="button">Convênio</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead id="thead"></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="empty">Importe os XMLs e clique em <strong>Processar</strong>.</div>
+    </div>
+
+    <!-- Painel de diagnóstico pensão -->
+    <div class="debug-panel" id="debug-panel" style="display:none">
+      <div class="section-title" style="margin-top:28px">Diagnóstico Pensão Alimentícia</div>
+      <div class="table-wrapper">
+        <div class="table-header">
+          <div class="table-title">Todos os nós &lt;penAlim&gt; encontrados nos XMLs</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span id="debug-total-men" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--accent2)"></span>
+            <span id="debug-total-dec" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--warn)"></span>
+            <button class="btn btn-clear" id="btn-debug-csv" style="padding:6px 12px;font-size:11px">⬇ CSV diagnóstico</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Arquivo</th>
+                <th>perApur</th>
+                <th>cpfBenef</th>
+                <th>tpRend</th>
+                <th>Classificação</th>
+                <th>vlrDedPenAlim</th>
+                <th>nó pai (infoIRCR)</th>
+                <th>tpCR</th>
+              </tr>
+            </thead>
+            <tbody id="debug-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+<script>
+const dropZone   = document.getElementById('drop-zone');
+const fileInput  = document.getElementById('file-input');
+const fileListEl = document.getElementById('file-list');
+const btnOpen    = document.getElementById('btn-open');
+const btnProcess = document.getElementById('btn-process');
+const btnClear   = document.getElementById('btn-clear');
+const btnCSV     = document.getElementById('btn-csv');
+const btnXLSX    = document.getElementById('btn-xlsx');
+const fileCountEl = document.getElementById('file-count');
+const statCPF      = document.getElementById('stat-cpf');
+const statCNPJ     = document.getElementById('stat-cnpj');
+const statReg      = document.getElementById('stat-registros');
+const statTrib     = document.getElementById('stat-trib');
+const statConvenio = document.getElementById('stat-convenio');
+const statPensao   = document.getElementById('stat-pensao');
+const tabDet = document.getElementById('tab-det');
+const tabConv = document.getElementById('tab-conv');
+const tableTitle = document.getElementById('table-title');
+const thead = document.getElementById('thead');
+const tbody = document.getElementById('tbody');
+const emptyEl = document.getElementById('empty');
+
+let selectedFiles = [];
+let allRows = [];
+let allPlans = [];
+let allPensaoLog = [];
+let convenioByPerApur = new Map();
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+function fmtCPF(raw) {
+  const cpf = (raw || '').replace(/\D/g, '').padStart(11,'0').slice(-11);
+  if (!cpf || cpf === '00000000000') return '';
+  return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+}
+function fmtCNPJ(raw) {
+  const cnpj = (raw || '').replace(/\D/g, '').padStart(14,'0').slice(-14);
+  if (!cnpj || cnpj === '00000000000000') return '';
+  return cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+}
+function moneyBR(v) {
+  return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+function toNumber(s) {
+  if (s == null) return 0;
+  const n = Number(String(s).trim().replace(',', '.'));
+  return Number.isFinite(n) ? n : 0;
+}
+
+btnOpen.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('click', (e) => { if (e.target === btnOpen) return; fileInput.click(); });
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  addFiles([...(e.dataTransfer.files || [])].filter(f => f.name.toLowerCase().endsWith('.xml')));
+});
+fileInput.addEventListener('change', () => { addFiles([...(fileInput.files || [])]); fileInput.value = ''; });
+
+function addFiles(files) {
+  if (!files.length) return;
+  const existing = new Set(selectedFiles.map(f => f.name + '|' + f.size));
+  for (const f of files) { if (!existing.has(f.name + '|' + f.size)) selectedFiles.push(f); }
+  renderFileChips();
+  btnProcess.disabled = btnClear.disabled = selectedFiles.length === 0;
+  fileCountEl.textContent = String(selectedFiles.length);
+}
+
+function renderFileChips() {
+  fileListEl.innerHTML = '';
+  selectedFiles.forEach((f, idx) => {
+    const chip = document.createElement('div');
+    chip.className = 'file-chip';
+    chip.innerHTML = `<span class="name" title="${f.name}">${f.name}</span><span class="remove">×</span>`;
+    chip.querySelector('.remove').addEventListener('click', (e) => {
+      e.stopPropagation(); selectedFiles.splice(idx, 1); renderFileChips();
+      btnProcess.disabled = btnClear.disabled = selectedFiles.length === 0;
+      fileCountEl.textContent = String(selectedFiles.length);
+    });
+    fileListEl.appendChild(chip);
+  });
+}
+
+btnClear.addEventListener('click', () => {
+  selectedFiles = []; allRows = []; allPlans = []; allPensaoLog = [];
+  convenioByPerApur = new Map(); renderFileChips(); fileCountEl.textContent = '0';
+  btnProcess.disabled = btnClear.disabled = btnCSV.disabled = btnXLSX.disabled = true;
+  statCPF.textContent = '—'; statCNPJ.textContent = 'CNPJ Empregador: —';
+  statReg.textContent = '0'; statTrib.textContent = 'R$ 0,00';
+  statConvenio.textContent = 'R$ 0,00'; statPensao.textContent = 'R$ 0,00';
+  renderTable('det'); emptyEl.style.display = 'block';
+  document.getElementById('debug-panel').style.display = 'none';
+  showToast('Estado limpo.', 'success');
+});
+
+function firstByTagAny(node, tag) { const els = node.getElementsByTagNameNS('*', tag); return els && els.length ? els[0] : null; }
+function allByTagAny(node, tag) { return [...(node.getElementsByTagNameNS('*', tag) || [])]; }
+function textAny(node, tag) { const el = firstByTagAny(node, tag); return el ? (el.textContent || '').trim() : ''; }
+function parseXmlOrThrow(xmlText, filename) {
+  const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
+  const err = doc.getElementsByTagName('parsererror')[0];
+  if (err) throw new Error(`XML inválido em "${filename}".`);
+  return doc;
+}
+
+function extrairConvenio(evt) {
+  let total = 0; const plans = [];
+  for (const ps of allByTagAny(evt, 'planSaude')) {
+    const cnpjOper = textAny(ps, 'cnpjOper'), regANS = textAny(ps, 'regANS');
+    const vlrSaudeTit = toNumber(textAny(ps, 'vlrSaudeTit'));
+    let vlrSaudeDep = 0;
+    for (const dep of allByTagAny(ps, 'infoDepSau')) vlrSaudeDep += toNumber(textAny(dep, 'vlrSaudeDep'));
+    const subtotal = vlrSaudeTit + vlrSaudeDep;
+    total += subtotal;
+    plans.push({ cnpjOper, regANS, vlrSaudeTit, vlrSaudeDep, totalPlano: subtotal, fonte: 'planSaude' });
+  }
+  return { total, plans };
+}
+
+function extrairPensao(evt, arquivo, perApur, cpfBenef) {
+  let mensal = 0, decimo = 0; const log = [];
+  for (const irCR of allByTagAny(evt, 'infoIRCR')) {
+    const tpCR = textAny(irCR, 'tpCR');
+    for (const pa of allByTagAny(irCR, 'penAlim')) {
+      const tpRend = textAny(pa, 'tpRend'), vlr = toNumber(textAny(pa, 'vlrDedPenAlim'));
+      const classe = tpRend==='12'?'13º Salário':tpRend==='11'?'Mensal/Férias':tpRend==='13'?'Férias Prop./Rescisão':`Outro (${tpRend})`;
+      if (tpRend === '12') decimo += vlr; else mensal += vlr;
+      log.push({ arquivo, perApur, cpfBenef, tpRend, classe, vlr, tpCR });
+    }
+  }
+  const jaContados = log.length;
+  const todosPenAlim = allByTagAny(evt, 'penAlim');
+  if (todosPenAlim.length > jaContados) {
+    for (const pa of todosPenAlim) {
+      const tpRend = textAny(pa, 'tpRend'), vlr = toNumber(textAny(pa, 'vlrDedPenAlim'));
+      if (!log.some(l => l.tpRend === tpRend && l.vlr === vlr)) {
+        const classe = tpRend==='12'?'13º Salário':tpRend==='11'?'Mensal/Férias':tpRend==='13'?'Férias Prop./Rescisão':`Outro (${tpRend})`;
+        if (tpRend === '12') decimo += vlr; else mensal += vlr;
+        log.push({ arquivo, perApur, cpfBenef, tpRend, classe, vlr, tpCR: '(fora de infoIRCR)' });
+      }
+    }
+  }
+  return { mensal, decimo, log };
+}
+
+function parseEvtIrrfBenef(doc, filename) {
+  const evt = doc.getElementsByTagNameNS('*', 'evtIrrfBenef')[0];
+  if (!evt) throw new Error(`Arquivo "${filename}" não contém evtIrrfBenef.`);
+  const perApur = textAny(evt, 'perApur'), cnpjEmpregador = textAny(evt, 'nrInsc'), cpfBenef = textAny(evt, 'cpfBenef');
+  const { total: convenioTotal, plans: rawPlans } = extrairConvenio(evt);
+  const plans = rawPlans.map(p => ({ arquivo: filename, perApur, cpfBenef, ...p }));
+  const { mensal: vlrPensaoAlimMensal, decimo: vlrPensaoAlim13, log: pensaoLog } = extrairPensao(evt, filename, perApur, cpfBenef);
+  const rows = [];
+  for (const dm of evt.getElementsByTagNameNS('*', 'dmDev')) {
+    const tot = firstByTagAny(dm, 'totApurMen');
+    rows.push({
+      arquivo: filename, perApur, perRef: textAny(dm,'perRef'), dtPgto: textAny(dm,'dtPgto'), tpPgto: textAny(dm,'tpPgto'),
+      cpfBenef, cnpjEmpregador,
+      vlrRendTrib: toNumber(tot?textAny(tot,'vlrRendTrib'):0), vlrRendTrib13: toNumber(tot?textAny(tot,'vlrRendTrib13'):0),
+      vlrPrevOficial: toNumber(tot?textAny(tot,'vlrPrevOficial'):0), vlrPrevOficial13: toNumber(tot?textAny(tot,'vlrPrevOficial13'):0),
+      vlrCRMen: toNumber(tot?textAny(tot,'vlrCRMen'):0), vlrCR13Men: toNumber(tot?textAny(tot,'vlrCR13Men'):0),
+      vlrIsenOutros: toNumber(tot?textAny(tot,'vlrIsenOutros'):0), vlrParcIsenta65: toNumber(tot?textAny(tot,'vlrParcIsenta65'):0),
+      vlrDiarias: toNumber(tot?textAny(tot,'vlrDiarias'):0), vlrAjudaCusto: toNumber(tot?textAny(tot,'vlrAjudaCusto'):0),
+      vlrAuxMoradia: toNumber(tot?textAny(tot,'vlrAuxMoradia'):0), vlrAbonoPec: toNumber(tot?textAny(tot,'vlrAbonoPec'):0),
+      vlrRendMoleGrave: toNumber(tot?textAny(tot,'vlrRendMoleGrave'):0), vlrRendMoleGrave13: toNumber(tot?textAny(tot,'vlrRendMoleGrave13'):0),
+      vlrBolsaMedico: toNumber(tot?textAny(tot,'vlrBolsaMedico'):0), vlrJurosMora: toNumber(tot?textAny(tot,'vlrJurosMora'):0),
+      vlrPensaoAlim: vlrPensaoAlimMensal, vlrPensaoAlimDec: vlrPensaoAlim13, vlrConvenioTotal: convenioTotal,
+    });
+  }
+  return { perApur, cpfBenef, cnpjEmpregador, rows, plans, convenioTotal, pensaoLog };
+}
+
+btnProcess.addEventListener('click', processAll);
+async function processAll() {
+  if (!selectedFiles.length) return;
+  btnProcess.disabled = true; btnProcess.textContent = 'Processando...';
+  btnCSV.disabled = btnXLSX.disabled = true;
+  try {
+    allRows = []; allPlans = []; allPensaoLog = []; convenioByPerApur = new Map();
+    const eventos = [];
+    for (const f of selectedFiles) {
+      const evt = parseEvtIrrfBenef(parseXmlOrThrow(await f.text(), f.name), f.name);
+      eventos.push(evt); allRows.push(...evt.rows); allPlans.push(...evt.plans);
+      allPensaoLog.push(...(evt.pensaoLog || []));
+      convenioByPerApur.set(evt.perApur, (convenioByPerApur.get(evt.perApur)||0) + (evt.convenioTotal||0));
+    }
+    if (!allRows.length) { renderTable('det'); emptyEl.style.display = 'block'; showToast('Nenhum dmDev encontrado.', 'error'); return; }
+    const cpf = eventos[0]?.cpfBenef || '', cnpj = eventos[0]?.cnpjEmpregador || '';
+    statCPF.textContent = cpf ? fmtCPF(cpf) : '—';
+    statCNPJ.textContent = 'CNPJ Empregador: ' + (cnpj ? fmtCNPJ(cnpj) : '—');
+    statReg.textContent = String(allRows.length);
+    statTrib.textContent = moneyBR(allRows.reduce((s,r) => s+(r.vlrRendTrib||0)+(r.vlrRendTrib13||0), 0));
+    let totConv = 0; for (const v of convenioByPerApur.values()) totConv += v;
+    statConvenio.textContent = moneyBR(totConv);
+    statPensao.textContent = moneyBR(allPensaoLog.reduce((s,e) => s+(e.vlr||0), 0));
+    btnCSV.disabled = btnXLSX.disabled = false;
+    renderTable('det'); renderDebugPanel(); emptyEl.style.display = 'none';
+    showToast('Processamento concluído.', 'success');
+  } catch(e) { console.error(e); showToast('Erro: ' + (e.message||e), 'error'); }
+  finally { btnProcess.disabled = selectedFiles.length === 0; btnProcess.textContent = 'Processar'; }
+}
+
+tabDet.addEventListener('click', () => { tabDet.classList.add('active'); tabConv.classList.remove('active'); renderTable('det'); });
+tabConv.addEventListener('click', () => { tabConv.classList.add('active'); tabDet.classList.remove('active'); renderTable('conv'); });
+
+function renderTable(mode) {
+  thead.innerHTML = ''; tbody.innerHTML = '';
+  if (mode === 'det') {
+    tableTitle.textContent = 'Detalhamento (dmDev)';
+    const cols = ['Arquivo','perApur','perRef','dtPgto','RendTrib','RendTrib13','PrevOfic','PrevOfic13','IR Men','IR 13','IsenOutros','Pensão Men','Pensão 13','Convênio'];
+    thead.innerHTML = '<tr>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr>';
+    if (!allRows.length) return;
+    const rows = [...allRows].sort((a,b)=>(a.perApur||'').localeCompare(b.perApur||'')||(a.perRef||'').localeCompare(b.perRef||'')||(a.dtPgto||'').localeCompare(b.dtPgto||''));
+    const T = {rt:0,rt13:0,po:0,po13:0,ir:0,ir13:0,isen:0,pen:0,pen13:0,conv:0};
+    for (const r of rows.slice(0,2500)) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td title="${r.arquivo}">${r.arquivo}</td><td>${r.perApur||''}</td><td>${r.perRef||''}</td><td>${r.dtPgto||''}</td><td>${moneyBR(r.vlrRendTrib)}</td><td>${moneyBR(r.vlrRendTrib13)}</td><td>${moneyBR(r.vlrPrevOficial)}</td><td>${moneyBR(r.vlrPrevOficial13)}</td><td>${moneyBR(r.vlrCRMen)}</td><td>${moneyBR(r.vlrCR13Men)}</td><td>${moneyBR(r.vlrIsenOutros)}</td><td>${moneyBR(r.vlrPensaoAlim)}</td><td>${moneyBR(r.vlrPensaoAlimDec)}</td><td>${moneyBR(r.vlrConvenioTotal)}</td>`;
+      tbody.appendChild(tr);
+      T.rt+=r.vlrRendTrib||0; T.rt13+=r.vlrRendTrib13||0; T.po+=r.vlrPrevOficial||0; T.po13+=r.vlrPrevOficial13||0;
+      T.ir+=r.vlrCRMen||0; T.ir13+=r.vlrCR13Men||0; T.isen+=r.vlrIsenOutros||0;
+      T.pen+=r.vlrPensaoAlim||0; T.pen13+=r.vlrPensaoAlimDec||0; T.conv+=r.vlrConvenioTotal||0;
+    }
+    const trTot = document.createElement('tr'); trTot.className = 'total-row';
+    trTot.innerHTML = `<td>TOTAL</td><td></td><td></td><td></td><td>${moneyBR(T.rt)}</td><td>${moneyBR(T.rt13)}</td><td>${moneyBR(T.po)}</td><td>${moneyBR(T.po13)}</td><td>${moneyBR(T.ir)}</td><td>${moneyBR(T.ir13)}</td><td>${moneyBR(T.isen)}</td><td>${moneyBR(T.pen)}</td><td>${moneyBR(T.pen13)}</td><td>${moneyBR(T.conv)}</td>`;
+    tbody.appendChild(trTot);
+  } else {
+    tableTitle.textContent = 'Convênio (planSaude)';
+    const cols = ['Arquivo','perApur','CPF Titular','CNPJ Oper.','Reg. ANS','Tit.','Dependente','Total Plano','Fonte'];
+    thead.innerHTML = '<tr>' + cols.map(c=>`<th>${c}</th>`).join('') + '</tr>';
+    if (!allPlans.length) { tbody.innerHTML = `<tr><td class="muted" colspan="9">Nenhum planSaude encontrado.</td></tr>`; return; }
+    const plans = [...allPlans].sort((a,b)=>(a.perApur||'').localeCompare(b.perApur||'')||(a.cnpjOper||'').localeCompare(b.cnpjOper||''));
+    let totTit=0,totDep=0,totTotal=0;
+    for (const p of plans.slice(0,4000)) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td title="${p.arquivo}">${p.arquivo}</td><td>${p.perApur||''}</td><td>${fmtCPF(p.cpfBenef)}</td><td>${fmtCNPJ(p.cnpjOper)}</td><td>${p.regANS||''}</td><td>${moneyBR(p.vlrSaudeTit)}</td><td>${moneyBR(p.vlrSaudeDep)}</td><td>${moneyBR(p.totalPlano)}</td><td>${p.fonte||''}</td>`;
+      tbody.appendChild(tr); totTit+=p.vlrSaudeTit||0; totDep+=p.vlrSaudeDep||0; totTotal+=p.totalPlano||0;
+    }
+    const trTot = document.createElement('tr'); trTot.className = 'total-row';
+    trTot.innerHTML = `<td>TOTAL</td><td></td><td></td><td></td><td></td><td>${moneyBR(totTit)}</td><td>${moneyBR(totDep)}</td><td>${moneyBR(totTotal)}</td><td></td>`;
+    tbody.appendChild(trTot);
+  }
+}
+
+btnCSV.addEventListener('click', () => {
+  if (!allRows.length) return;
+  const headers = ['arquivo','perApur','perRef','dtPgto','tpPgto','vlrRendTrib','vlrRendTrib13','vlrPrevOficial','vlrPrevOficial13','vlrCRMen','vlrCR13Men','vlrIsenOutros','vlrParcIsenta65','vlrDiarias','vlrAjudaCusto','vlrAuxMoradia','vlrAbonoPec','vlrRendMoleGrave','vlrRendMoleGrave13','vlrBolsaMedico','vlrJurosMora','vlrPensaoAlim','vlrPensaoAlimDec','cpfBenef','cnpjEmpregador','vlrConvenioTotal'];
+  const numCols = new Set(['vlrRendTrib','vlrRendTrib13','vlrPrevOficial','vlrPrevOficial13','vlrCRMen','vlrCR13Men','vlrIsenOutros','vlrParcIsenta65','vlrDiarias','vlrAjudaCusto','vlrAuxMoradia','vlrAbonoPec','vlrRendMoleGrave','vlrRendMoleGrave13','vlrBolsaMedico','vlrJurosMora','vlrPensaoAlim','vlrPensaoAlimDec','vlrConvenioTotal']);
+  const lines = [headers.join(';')];
+  allRows.forEach(r => lines.push(headers.map(h => { const v=r[h]; return typeof v==='number'?String(v).replace('.',','):(v??''); }).join(';')));
+  lines.push(headers.map(h => h==='arquivo'?'TOTAL':numCols.has(h)?String(allRows.reduce((s,r)=>s+(r[h]||0),0)).replace('.',','):'').join(';'));
+  const blob = new Blob(['\uFEFF'+lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `esocial_s1210_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
+  showToast('CSV exportado.', 'success');
+});
+
+function renderDebugPanel() {
+  const panel = document.getElementById('debug-panel'), debugTbody = document.getElementById('debug-tbody');
+  const spanMen = document.getElementById('debug-total-men'), spanDec = document.getElementById('debug-total-dec');
+  debugTbody.innerHTML = '';
+  if (!allPensaoLog.length) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  let totMen = 0, totDec = 0;
+  allPensaoLog.forEach(entry => {
+    const tr = document.createElement('tr'), is13 = entry.tpRend === '12';
+    tr.style.background = is13 ? 'rgba(217,119,6,.08)' : '';
+    tr.innerHTML = `<td style="text-align:left" title="${entry.arquivo}">${entry.arquivo}</td><td>${entry.perApur||''}</td><td style="font-family:'DM Mono',monospace;font-size:11px">${entry.cpfBenef?fmtCPF(entry.cpfBenef):''}</td><td style="font-weight:700;color:${is13?'var(--warn)':'var(--accent2)'}">${entry.tpRend}</td><td style="color:${is13?'var(--warn)':'var(--text)'}">${entry.classe}</td><td style="font-family:'DM Mono',monospace">${moneyBR(entry.vlr)}</td><td style="font-size:10px;color:var(--muted)">${entry.tpCR||''}</td><td style="font-size:10px;color:var(--muted)">${entry.tpCR||''}</td>`;
+    debugTbody.appendChild(tr);
+    if (is13) totDec += entry.vlr; else totMen += entry.vlr;
+  });
+  const trTot = document.createElement('tr'); trTot.className = 'total-row';
+  trTot.innerHTML = `<td>TOTAL</td><td></td><td></td><td></td><td></td><td>${moneyBR(totMen+totDec)}</td><td></td><td></td>`;
+  debugTbody.appendChild(trTot);
+  spanMen.textContent = `Mensal/Férias: ${moneyBR(totMen)}`;
+  spanDec.textContent = `13º: ${moneyBR(totDec)}`;
+}
+
+document.getElementById('btn-debug-csv').addEventListener('click', () => {
+  if (!allPensaoLog.length) return;
+  const headers = ['arquivo','perApur','cpfBenef','tpRend','classificacao','vlrDedPenAlim','tpCR'];
+  const lines = [headers.join(';')];
+  allPensaoLog.forEach(e => lines.push([e.arquivo,e.perApur,e.cpfBenef,e.tpRend,e.classe,String(e.vlr).replace('.',','),e.tpCR].join(';')));
+  const blob = new Blob(['\uFEFF'+lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `diagnostico_pensao_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
+  showToast('CSV diagnóstico exportado.', 'success');
+});
+
+const XlsxEngine = (() => {
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); }
+  function colName(c) { let n=c+1,name=''; while(n>0){const rem=(n-1)%26;name=String.fromCharCode(65+rem)+name;n=Math.floor((n-1)/26);} return name; }
+  function cellAddr(r,c) { return colName(c)+(r+1); }
+  class Sheet {
+    constructor(name){this.name=name;this.rows=[];this.merges=[];this.colWidths=[];}
+    addRow(cells,height=15){this.rows.push({cells,height});return this.rows.length-1;}
+    merge(r1,c1,r2,c2){this.merges.push({r1,c1,r2,c2});}
+    setColWidth(col,width){this.colWidths[col]=width;}
+  }
+  class Workbook { constructor(){this.sheets=[];} addSheet(name){const sh=new Sheet(name);this.sheets.push(sh);return sh;} }
+  function createWorkbook(){return new Workbook();}
+  function Cblank(){return null;}
+  function Cs(v,s=0){return(v===null||v===undefined)?null:{t:'s',v:String(v),s};}
+  function Cn(v,s=0){return(v===null||v===undefined)?null:{t:'n',v:Number(v),s};}
+
+  function buildStylesXml() {
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <numFmts count="1"><numFmt numFmtId="164" formatCode="&quot;R$&quot; #,##0.00"/></numFmts>
+  <fonts count="6">
+    <font><sz val="11"/><color rgb="FF1A1A2E"/><name val="Calibri"/></font>
+    <font><b/><sz val="16"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+    <font><b/><sz val="11"/><color rgb="FF1A1A2E"/><name val="Calibri"/></font>
+    <font><b/><sz val="12"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
+    <font><sz val="10"/><color rgb="FF1A1A2E"/><name val="Calibri"/></font>
+  </fonts>
+  <fills count="10">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1B3A6B"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF2E5FA3"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1E3A5F"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFFFFF"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFF4F6FA"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF155724"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFE8F0FE"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFECF4EC"/></patternFill></fill>
+  </fills>
+  <borders count="3">
+    <border/>
+    <border><left><color rgb="FFD0D8E8"/></left><right><color rgb="FFD0D8E8"/></right><top><color rgb="FFD0D8E8"/></top><bottom><color rgb="FFD0D8E8"/></bottom></border>
+    <border><left><color rgb="FF3A7BD5"/></left><right><color rgb="FF3A7BD5"/></right><top><color rgb="FF3A7BD5"/></top><bottom><color rgb="FF3A7BD5"/></bottom></border>
+  </borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="13">
+    <xf numFmtId="0" fontId="0" fillId="5" borderId="1" xfId="0" applyFill="1" applyBorder="1"/>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="2" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="2" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="5" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="164" fontId="5" fillId="5" borderId="1" xfId="0" applyFont="1" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="5" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="164" fontId="5" fillId="6" borderId="1" xfId="0" applyFont="1" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="4" fillId="7" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="164" fontId="4" fillId="7" borderId="2" xfId="0" applyFont="1" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="3" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="164" fontId="3" fillId="8" borderId="1" xfId="0" applyFont="1" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+  </cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+  <dxfs count="0"/><tableStyles count="0"/>
+</styleSheet>`;
+  }
+
+  function sheetToXml(sh) {
+    let colsXml = '';
+    if (sh.colWidths.some(Boolean)) colsXml = '<cols>'+sh.colWidths.map((w,i)=>w?`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`:'').join('')+'</cols>';
+    let rowsXml = '';
+    sh.rows.forEach((row,ri) => {
+      rowsXml += `<row r="${ri+1}" ht="${row.height}" customHeight="1">`;
+      row.cells.forEach((cell,ci) => {
+        if (!cell) return;
+        const addr=cellAddr(ri,ci), s=cell.s??0;
+        if (cell.t==='n'){const num=Number(cell.v);if(!Number.isFinite(num))return;rowsXml+=`<c r="${addr}" s="${s}" t="n"><v>${num}</v></c>`;}
+        else{const sv=esc(cell.v??'');if(sv==='')return;rowsXml+=`<c r="${addr}" s="${s}" t="inlineStr"><is><t>${sv}</t></is></c>`;}
+      });
+      rowsXml += '</row>';
+    });
+    let mergesXml = '';
+    if (sh.merges.length) mergesXml = `<mergeCells count="${sh.merges.length}">`+sh.merges.map(m=>`<mergeCell ref="${cellAddr(m.r1,m.c1)}:${cellAddr(m.r2,m.c2)}"/>`).join('')+`</mergeCells>`;
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetViews><sheetView workbookViewId="0"><selection activeCell="A1"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/>${colsXml}<sheetData>${rowsXml}</sheetData>${mergesXml}</worksheet>`;
+  }
+
+  function crc32(data) {
+    const table = crc32.table||(crc32.table=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let j=0;j<8;j++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c>>>0;}return t;})());
+    let crc=0xFFFFFFFF;for(let i=0;i<data.length;i++)crc=table[(crc^data[i])&0xFF]^(crc>>>8);return(crc^0xFFFFFFFF)>>>0;
+  }
+
+  async function makeZip(files) {
+    const enc=new TextEncoder(),entries=[],centralDir=[];let offset=0;
+    for(const f of files){
+      const name=enc.encode(f.name),data=(f.data instanceof Uint8Array)?f.data:enc.encode(f.data),crc=crc32(data),compSize=data.length;
+      const lh=new Uint8Array(30+name.length),lv=new DataView(lh.buffer);
+      lv.setUint32(0,0x04034b50,true);lv.setUint16(4,20,true);lv.setUint16(6,0,true);lv.setUint16(8,0,true);lv.setUint16(10,0,true);lv.setUint16(12,0,true);
+      lv.setUint32(14,crc,true);lv.setUint32(18,compSize,true);lv.setUint32(22,data.length,true);lv.setUint16(26,name.length,true);lv.setUint16(28,0,true);lh.set(name,30);
+      centralDir.push({name,crc,compSize,uncompSize:data.length,offset});entries.push(lh,data);offset+=lh.length+data.length;
+    }
+    const cdEntries=[];let cdSize=0;
+    for(const it of centralDir){
+      const cd=new Uint8Array(46+it.name.length),dv=new DataView(cd.buffer);
+      dv.setUint32(0,0x02014b50,true);dv.setUint16(4,20,true);dv.setUint16(6,20,true);dv.setUint16(8,0,true);dv.setUint16(10,0,true);dv.setUint16(12,0,true);dv.setUint16(14,0,true);
+      dv.setUint32(16,it.crc,true);dv.setUint32(20,it.compSize,true);dv.setUint32(24,it.uncompSize,true);dv.setUint16(28,it.name.length,true);
+      dv.setUint16(30,0,true);dv.setUint16(32,0,true);dv.setUint16(34,0,true);dv.setUint16(36,0,true);dv.setUint32(38,0,true);dv.setUint32(42,it.offset,true);
+      cd.set(it.name,46);cdEntries.push(cd);cdSize+=cd.length;
+    }
+    const eocd=new Uint8Array(22),ev=new DataView(eocd.buffer);
+    ev.setUint32(0,0x06054b50,true);ev.setUint16(4,0,true);ev.setUint16(6,0,true);ev.setUint16(8,centralDir.length,true);ev.setUint16(10,centralDir.length,true);ev.setUint32(12,cdSize,true);ev.setUint32(16,offset,true);ev.setUint16(20,0,true);
+    const parts=[...entries,...cdEntries,eocd],out=new Uint8Array(parts.reduce((s,p)=>s+p.length,0));let pos=0;parts.forEach(p=>{out.set(p,pos);pos+=p.length;});return out;
+  }
+
+  function addTitleBlock(sh,title,sub,nCols){
+    const tr=sh.addRow(Array(nCols).fill(Cblank()),32);sh.rows[tr].cells[0]=Cs(title,1);sh.merge(tr,0,tr,nCols-1);
+    const sr=sh.addRow(Array(nCols).fill(Cblank()),20);sh.rows[sr].cells[0]=Cs(sub,2);sh.merge(sr,0,sr,nCols-1);
+    sh.addRow([],6);
+  }
+  function addHeaderRow(sh,labels){sh.addRow(labels.map((l,i)=>Cs(l,i===0?4:3)),22);}
+
+  function buildVisaoGeral(wb,rows,plans,pensaoLog,cnpj,cpf){
+    const sh=wb.addSheet('Visão Geral');[28,18,18,18,18,18,18,18].forEach((w,i)=>sh.setColWidth(i,w));
+    addTitleBlock(sh,'eSocial S-1210 | Visão Geral',`CNPJ: ${fmtCNPJ(cnpj)}   |   CPF: ${fmtCPF(cpf)}`,8);
+    const totRT=rows.reduce((s,r)=>s+(r.vlrRendTrib||0),0),totRT13=rows.reduce((s,r)=>s+(r.vlrRendTrib13||0),0);
+    const totPrev=rows.reduce((s,r)=>s+(r.vlrPrevOficial||0)+(r.vlrPrevOficial13||0),0);
+    const totIR=rows.reduce((s,r)=>s+(r.vlrCRMen||0)+(r.vlrCR13Men||0),0);
+    const totIsen=rows.reduce((s,r)=>s+(r.vlrIsenOutros||0)+(r.vlrParcIsenta65||0)+(r.vlrDiarias||0),0);
+    const totConv=plans.reduce((s,p)=>s+(p.totalPlano||0),0);
+    const totPens=pensaoLog.filter(e=>e.tpRend!=='12').reduce((s,e)=>s+(e.vlr||0),0);
+    const totPens13=pensaoLog.filter(e=>e.tpRend==='12').reduce((s,e)=>s+(e.vlr||0),0);
+    const totTrib=totRT+totRT13;
+    sh.addRow([Cs('INDICADORES CONSOLIDADOS',11),...Array(7).fill(Cblank())],16);sh.merge(sh.rows.length-1,0,sh.rows.length-1,7);
+    [['Total Tributável (Mensal)',totRT,'Total Tributável (13º)',totRT13,'TOTAL TRIBUTÁVEL',totTrib,'',''],
+     ['Prev. Oficial Total',totPrev,'IR Retido Total',totIR,'Total Isenções',totIsen,'',''],
+     ['Total Convênio (Incid.67)',totConv,'Total Pensão Men.',totPens,'Total Pensão 13º',totPens13,'','']
+    ].forEach(kr=>{
+      const cells=[];for(let i=0;i<8;i++){if(i===0||i===2||i===4||i===6)cells.push(kr[i]!==''?Cs(kr[i],11):Cblank());else cells.push(kr[i]!==''?Cn(kr[i],12):Cblank());}
+      sh.addRow(cells,20);
+    });
+    sh.addRow([],10);
+    sh.addRow([Cs('RESUMO POR PERÍODO',11),...Array(7).fill(Cblank())],16);sh.merge(sh.rows.length-1,0,sh.rows.length-1,7);
+    addHeaderRow(sh,['perApur','RendTrib','RendTrib13','PrevOfic','PrevOfic13','IR Men','IR 13','Convênio']);
+    const map=new Map();
+    for(const r of rows){const k=r.perApur||'(sem perApur)';if(!map.has(k))map.set(k,{k,rt:0,rt13:0,po:0,po13:0,ir:0,ir13:0});const a=map.get(k);a.rt+=r.vlrRendTrib||0;a.rt13+=r.vlrRendTrib13||0;a.po+=r.vlrPrevOficial||0;a.po13+=r.vlrPrevOficial13||0;a.ir+=r.vlrCRMen||0;a.ir13+=r.vlrCR13Men||0;}
+    const convBy=new Map();for(const p of plans){const k=p.perApur||'(sem perApur)';convBy.set(k,(convBy.get(k)||0)+(p.totalPlano||0));}
+    const items=[...map.values()].sort((a,b)=>a.k.localeCompare(b.k));
+    const T={rt:0,rt13:0,po:0,po13:0,ir:0,ir13:0,conv:0};
+    items.forEach((a,i)=>{const z=i%2===1,conv=convBy.get(a.k)||0;sh.addRow([Cs(a.k,z?7:5),Cn(a.rt,z?8:6),Cn(a.rt13,z?8:6),Cn(a.po,z?8:6),Cn(a.po13,z?8:6),Cn(a.ir,z?8:6),Cn(a.ir13,z?8:6),Cn(conv,z?8:6)],16);T.rt+=a.rt;T.rt13+=a.rt13;T.po+=a.po;T.po13+=a.po13;T.ir+=a.ir;T.ir13+=a.ir13;T.conv+=conv;});
+    sh.addRow([Cs('TOTAL',9),Cn(T.rt,10),Cn(T.rt13,10),Cn(T.po,10),Cn(T.po13,10),Cn(T.ir,10),Cn(T.ir13,10),Cn(T.conv,10)],18);
+  }
+
+  function buildResumoMensal(wb,rows,plans,pensaoLog,cnpj,cpf){
+    const sh=wb.addSheet('Resumo Mensal');[14,16,16,16,16,14,14,16,16,14,14,14,16,16].forEach((w,i)=>sh.setColWidth(i,w));
+    addTitleBlock(sh,'eSocial S-1210 | Resumo Mensal (perApur)',`CNPJ: ${fmtCNPJ(cnpj)}   |   CPF: ${fmtCPF(cpf)}`,14);
+    addHeaderRow(sh,['perApur','RendTrib','RendTrib13','Total Trib.','Prev Oficial','IR Total','Isen/Outros','Parc.Is.65','Diárias','Aux Moradia','Pensão Men.','Pensão 13º','Convênio','Total Geral']);
+    const pensaoMenBy=new Map(),pensao13By=new Map();
+    for(const e of pensaoLog){const k=e.perApur||'(sem perApur)';if(e.tpRend==='12')pensao13By.set(k,(pensao13By.get(k)||0)+e.vlr);else pensaoMenBy.set(k,(pensaoMenBy.get(k)||0)+e.vlr);}
+    const map=new Map();
+    for(const r of rows){const k=r.perApur||'(sem perApur)';if(!map.has(k))map.set(k,{k,rt:0,rt13:0,prev:0,ir:0,isen:0,isen65:0,diarias:0,aux:0});const a=map.get(k);a.rt+=r.vlrRendTrib||0;a.rt13+=r.vlrRendTrib13||0;a.prev+=(r.vlrPrevOficial||0)+(r.vlrPrevOficial13||0);a.ir+=(r.vlrCRMen||0)+(r.vlrCR13Men||0);a.isen+=r.vlrIsenOutros||0;a.isen65+=r.vlrParcIsenta65||0;a.diarias+=r.vlrDiarias||0;a.aux+=r.vlrAuxMoradia||0;}
+    const convBy=new Map();for(const p of plans){const k=p.perApur||'(sem perApur)';convBy.set(k,(convBy.get(k)||0)+(p.totalPlano||0));}
+    const items=[...map.values()].sort((a,b)=>a.k.localeCompare(b.k));
+    const T={rt:0,rt13:0,prev:0,ir:0,isen:0,isen65:0,diarias:0,aux:0,pensao:0,pensao13:0,conv:0,total:0};
+    items.forEach((a,i)=>{
+      const z=i%2===1,trib=a.rt+a.rt13,conv=convBy.get(a.k)||0,pensao=pensaoMenBy.get(a.k)||0,pensao13=pensao13By.get(a.k)||0;
+      const total=trib+a.prev+a.ir+a.isen+a.isen65+a.diarias+a.aux+pensao+pensao13+conv;
+      sh.addRow([Cs(a.k,z?7:5),Cn(a.rt,z?8:6),Cn(a.rt13,z?8:6),Cn(trib,z?8:6),Cn(a.prev,z?8:6),Cn(a.ir,z?8:6),Cn(a.isen,z?8:6),Cn(a.isen65,z?8:6),Cn(a.diarias,z?8:6),Cn(a.aux,z?8:6),Cn(pensao,z?8:6),Cn(pensao13,z?8:6),Cn(conv,z?8:6),Cn(total,z?8:6)],16);
+      T.rt+=a.rt;T.rt13+=a.rt13;T.prev+=a.prev;T.ir+=a.ir;T.isen+=a.isen;T.isen65+=a.isen65;T.diarias+=a.diarias;T.aux+=a.aux;T.pensao+=pensao;T.pensao13+=pensao13;T.conv+=conv;T.total+=total;
+    });
+    sh.addRow([Cs('TOTAL',9),Cn(T.rt,10),Cn(T.rt13,10),Cn(T.rt+T.rt13,10),Cn(T.prev,10),Cn(T.ir,10),Cn(T.isen,10),Cn(T.isen65,10),Cn(T.diarias,10),Cn(T.aux,10),Cn(T.pensao,10),Cn(T.pensao13,10),Cn(T.conv,10),Cn(T.total,10)],18);
+  }
+
+  function buildDetalhamento(wb,rows,pensaoLog,cnpj,cpf){
+    const sh=wb.addSheet('Detalhamento');[32,10,12,12,14,16,16,16,16,14,14,16,16,16,14,14,16].forEach((w,i)=>sh.setColWidth(i,w));
+    addTitleBlock(sh,'eSocial S-1210 | Detalhamento (dmDev)',`CNPJ: ${fmtCNPJ(cnpj)}   |   CPF: ${fmtCPF(cpf)}`,17);
+    addHeaderRow(sh,['arquivo','perApur','perRef','dtPgto','tpPgto','RendTrib','RendTrib13','PrevOficial','PrevOficial13','IR Men','IR 13','IsenOutros','Parc.Is.65','Diárias','Pensão Men.','Pensão 13º','Convênio']);
+    const sorted=[...rows].sort((a,b)=>(a.perApur||'').localeCompare(b.perApur||'')||(a.perRef||'').localeCompare(b.perRef||'')||(a.dtPgto||'').localeCompare(b.dtPgto||''));
+    const T={rt:0,rt13:0,po:0,po13:0,ir:0,ir13:0,isen:0,isen65:0,diarias:0,conv:0};
+    sorted.forEach((r,i)=>{
+      const z=i%2===1;
+      sh.addRow([Cs(r.arquivo,z?7:5),Cs(r.perApur,z?7:5),Cs(r.perRef,z?7:5),Cs(r.dtPgto,z?7:5),Cs(r.tpPgto,z?7:5),Cn(r.vlrRendTrib,z?8:6),Cn(r.vlrRendTrib13,z?8:6),Cn(r.vlrPrevOficial,z?8:6),Cn(r.vlrPrevOficial13,z?8:6),Cn(r.vlrCRMen,z?8:6),Cn(r.vlrCR13Men,z?8:6),Cn(r.vlrIsenOutros,z?8:6),Cn(r.vlrParcIsenta65,z?8:6),Cn(r.vlrDiarias,z?8:6),Cn(r.vlrPensaoAlim,z?8:6),Cn(r.vlrPensaoAlimDec,z?8:6),Cn(r.vlrConvenioTotal,z?8:6)],16);
+      T.rt+=r.vlrRendTrib||0;T.rt13+=r.vlrRendTrib13||0;T.po+=r.vlrPrevOficial||0;T.po13+=r.vlrPrevOficial13||0;T.ir+=r.vlrCRMen||0;T.ir13+=r.vlrCR13Men||0;T.isen+=r.vlrIsenOutros||0;T.isen65+=r.vlrParcIsenta65||0;T.diarias+=r.vlrDiarias||0;T.conv+=r.vlrConvenioTotal||0;
+    });
+    const totPensaoMen=pensaoLog.filter(e=>e.tpRend!=='12').reduce((s,e)=>s+(e.vlr||0),0);
+    const totPensao13=pensaoLog.filter(e=>e.tpRend==='12').reduce((s,e)=>s+(e.vlr||0),0);
+    sh.addRow([Cs('TOTAL',9),Cblank(),Cblank(),Cblank(),Cblank(),Cn(T.rt,10),Cn(T.rt13,10),Cn(T.po,10),Cn(T.po13,10),Cn(T.ir,10),Cn(T.ir13,10),Cn(T.isen,10),Cn(T.isen65,10),Cn(T.diarias,10),Cn(totPensaoMen,10),Cn(totPensao13,10),Cn(T.conv,10)],18);
+  }
+
+  function buildDetalhamentoConvenio(wb,plans,cnpj,cpf){
+    const sh=wb.addSheet('Detalhamento Convênio');[32,10,16,18,14,18,18,18,16].forEach((w,i)=>sh.setColWidth(i,w));
+    addTitleBlock(sh,'eSocial S-1210 | Detalhamento Convênio (planSaude)',`CNPJ: ${fmtCNPJ(cnpj)}   |   CPF: ${fmtCPF(cpf)}`,9);
+    addHeaderRow(sh,['arquivo','perApur','cpfTitular','cnpjOper','regANS','Titular','Dependente','Total Plano','Fonte']);
+    const sorted=[...plans].sort((a,b)=>(a.perApur||'').localeCompare(b.perApur||'')||(a.cnpjOper||'').localeCompare(b.cnpjOper||''));
+    let totTit=0,totDep=0,totTotal=0;
+    sorted.forEach((p,i)=>{const z=i%2===1;sh.addRow([Cs(p.arquivo,z?7:5),Cs(p.perApur,z?7:5),Cs(fmtCPF(p.cpfBenef),z?7:5),Cs(fmtCNPJ(p.cnpjOper),z?7:5),Cs(p.regANS||'',z?7:5),Cn(p.vlrSaudeTit,z?8:6),Cn(p.vlrSaudeDep,z?8:6),Cn(p.totalPlano,z?8:6),Cs(p.fonte||'',z?7:5)],16);totTit+=p.vlrSaudeTit||0;totDep+=p.vlrSaudeDep||0;totTotal+=p.totalPlano||0;});
+    sh.addRow([Cs('TOTAL',9),Cblank(),Cblank(),Cblank(),Cblank(),Cn(totTit,10),Cn(totDep,10),Cn(totTotal,10),Cblank()],18);
+  }
+
+  async function writeFile(wb,filename){
+    const enc=new TextEncoder(),stylesXml=buildStylesXml();
+    const sharedStrings=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="0" uniqueCount="0"/>`;
+    const sheets=wb.sheets.map((sh,i)=>({name:sh.name,xml:sheetToXml(sh),id:`rId${i+1}`,idx:i+1}));
+    const wbXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map(s=>`<sheet name="${esc(s.name)}" sheetId="${s.idx}" r:id="${s.id}"/>`).join('')}</sheets></workbook>`;
+    const wbRelsXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map(s=>`<Relationship Id="${s.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${s.idx}.xml"/>`).join('')}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId${sheets.length+2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>`;
+    const now=new Date().toISOString();
+    const coreXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:creator>eSocial S-1210 Processor</dc:creator><cp:lastModifiedBy>eSocial S-1210 Processor</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`;
+    const appXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>eSocial S-1210 Processor</Application></Properties>`;
+    const contentTypes=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map(s=>`<Override PartName="/xl/worksheets/sheet${s.idx}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`;
+    const relsXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>`;
+    const zipFiles=[
+      {name:'[Content_Types].xml',data:enc.encode(contentTypes)},{name:'_rels/.rels',data:enc.encode(relsXml)},
+      {name:'docProps/core.xml',data:enc.encode(coreXml)},{name:'docProps/app.xml',data:enc.encode(appXml)},
+      {name:'xl/workbook.xml',data:enc.encode(wbXml)},{name:'xl/_rels/workbook.xml.rels',data:enc.encode(wbRelsXml)},
+      {name:'xl/styles.xml',data:enc.encode(stylesXml)},{name:'xl/sharedStrings.xml',data:enc.encode(sharedStrings)},
+      ...sheets.map(s=>({name:`xl/worksheets/sheet${s.idx}.xml`,data:enc.encode(s.xml)})),
+    ];
+    const zipData=await makeZip(zipFiles);
+    const blob=new Blob([zipData],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();URL.revokeObjectURL(a.href);
+  }
+
+  return {createWorkbook,buildVisaoGeral,buildResumoMensal,buildDetalhamento,buildDetalhamentoConvenio,writeFile};
+})();
+
+btnXLSX.addEventListener('click', async () => {
+  if (!allRows.length) return;
+  const old = btnXLSX.textContent;
+  try {
+    btnXLSX.disabled = true; btnXLSX.textContent = '⏳ Gerando Excel...';
+    const cnpj=allRows[0]?.cnpjEmpregador||'', cpf=allRows[0]?.cpfBenef||'';
+    const wb=XlsxEngine.createWorkbook();
+    XlsxEngine.buildVisaoGeral(wb,allRows,allPlans,allPensaoLog,cnpj,cpf);
+    XlsxEngine.buildResumoMensal(wb,allRows,allPlans,allPensaoLog,cnpj,cpf);
+    XlsxEngine.buildDetalhamento(wb,allRows,allPensaoLog,cnpj,cpf);
+    XlsxEngine.buildDetalhamentoConvenio(wb,allPlans,cnpj,cpf);
+    await XlsxEngine.writeFile(wb,`esocial_s1210_${new Date().toISOString().slice(0,10)}.xlsx`);
+    showToast('Excel exportado com sucesso.', 'success');
+  } catch(e) { console.error(e); showToast('Erro ao gerar Excel: '+(e.message||e),'error'); }
+  finally { btnXLSX.disabled=false; btnXLSX.textContent=old; }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1437 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conversor de Eventos - Domínio Sistemas</title>
+  
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  (async function dpGuard() {
+    const SUPA_URL = 'https://lpktdwfwlrqzyrvxcuum.supabase.co';
+    const SUPA_KEY = 'sb_publishable_6ohdnk6vaoiqtUC_Tq66OQ_wFV7evK0';
+    const sbGuard = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+    const { data: { session } } = await sbGuard.auth.getSession();
+    if (!session) window.location.href = '/index.html';
+  })();
+</script>
+  <!-- Fontes do Google -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- SheetJS para leitura de arquivos Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --bg-primary: #f3f4f6;
+      --bg-secondary: #ffffff;
+      --bg-card: #f9fafb;
+      --border-color: #e5e7eb;
+
+      --text-primary: #111827;
+      --text-secondary: #6b7280;
+      --text-muted: #9ca3af;
+
+      --accent: #0d7377;
+      --accent-hover: #0a5d61;
+      --accent-glow: rgba(13, 115, 119, 0.10);
+
+      --cyan: #2563eb;
+      --cyan-hover: #1e40af;
+
+      --error: #dc2626;
+      --error-bg: #fee2e2;
+
+      --warning: #d97706;
+      --warning-bg: #fef3c7;
+
+      --success-bg: #dcfce7;
+
+      --font-title: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+
+      --transition-fast: 0.2s ease;
+      --transition-normal: 0.3s ease;
+
+      --shadow-lg: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* Header DP+ — idêntico ao <header> do index.html */
+    .app-header {
+      background: #111827; color: #ffffff;
+      height: 52px; padding: 0 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .hd-l { display: flex; align-items: center; gap: 14px; }
+    .hd-logo { font-size: 17px; font-weight: 800; letter-spacing: -.5px; }
+    .hd-logo span { color: #22d3ee; }
+    .hd-crumb { font-size: 12px; padding: 3px 10px; background: rgba(255,255,255,.08); border-radius: 20px; color: rgba(255,255,255,.65); }
+    .hd-crumb b { color: #ffffff; font-weight: 600; }
+    .back-link {
+      font-size: 12px; color: rgba(255,255,255,.65); text-decoration: none; font-weight: 600;
+      padding: 5px 12px; border-radius: 6px; background: rgba(255,255,255,.1);
+      transition: background .15s;
+    }
+    .back-link:hover { background: rgba(255,255,255,.18); color: #ffffff; }
+
+    .page-wrap {
+      padding: 2rem 1rem;
+      min-height: calc(100vh - 52px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .page-intro {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      animation: fadeInDown 0.6s ease;
+    }
+
+    .logo-container {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, var(--accent), var(--cyan));
+      border-radius: 16px;
+      margin-bottom: 1rem;
+      box-shadow: 0 0 20px rgba(13, 115, 119, 0.25);
+    }
+
+    .logo-container svg {
+      width: 32px;
+      height: 32px;
+      fill: white;
+    }
+
+    h1 {
+      font-family: var(--font-title);
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 1.05rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Cards */
+    .card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 2.5rem;
+      box-shadow: var(--shadow-lg);
+      margin-bottom: 2rem;
+      animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Upload Zone */
+    .upload-zone {
+      border: 2px dashed var(--border-color);
+      border-radius: 16px;
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      background-color: var(--bg-card);
+      transition: all var(--transition-normal);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--accent);
+      background-color: var(--accent-glow);
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    .upload-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      display: inline-block;
+      transition: transform var(--transition-fast);
+      color: var(--accent);
+    }
+
+    .upload-zone:hover .upload-icon {
+      transform: translateY(-5px);
+    }
+
+    .upload-text {
+      font-size: 1.1rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+
+    .upload-hint {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .file-input {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    /* Active File Info */
+    .file-info-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      margin-top: 1.5rem;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .file-details {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .excel-icon {
+      color: var(--accent);
+      width: 24px;
+      height: 24px;
+    }
+
+    .file-name {
+      font-weight: 500;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-size {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .btn-remove {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: 6px;
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-remove:hover {
+      color: var(--error);
+      background: var(--error-bg);
+    }
+
+    /* Sheet Selector */
+    .sheet-selector-container {
+      margin-top: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .sheet-selector-container label {
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .select-custom {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 0.5rem 2rem 0.5rem 1rem;
+      border-radius: 8px;
+      outline: none;
+      cursor: pointer;
+      font-family: inherit;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      background-size: 1rem;
+    }
+
+    .select-custom:focus {
+      border-color: var(--accent);
+    }
+
+    /* Metadata & Summary Section */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+      animation: fadeIn 0.5s ease;
+    }
+
+    .summary-box {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      padding: 1.25rem;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      position: relative;
+    }
+
+    .summary-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      border-radius: 12px 0 0 12px;
+    }
+
+    .summary-box.company::before { background-color: var(--accent); }
+    .summary-box.date::before { background-color: var(--cyan); }
+    .summary-box.records::before { background-color: var(--warning); }
+
+    .summary-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .summary-val {
+      font-family: var(--font-title);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    /* Alerts */
+    .alert {
+      padding: 1rem 1.25rem;
+      border-radius: 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .alert-error {
+      background-color: var(--error-bg);
+      border: 1px solid rgba(220, 38, 38, 0.2);
+      color: var(--error);
+    }
+
+    .alert-warning {
+      background-color: var(--warning-bg);
+      border: 1px solid rgba(217, 119, 6, 0.25);
+      color: var(--warning);
+    }
+
+    .alert-icon {
+      flex-shrink: 0;
+      margin-top: 0.2rem;
+    }
+
+    /* Preview Section */
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .preview-title {
+      font-family: var(--font-title);
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .table-container {
+      max-height: 350px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background-color: var(--bg-card);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f3f4f6;
+      color: var(--text-secondary);
+      font-weight: 600;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-secondary);
+    }
+
+    tr:hover td {
+      color: var(--text-primary);
+      background-color: var(--bg-card);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-reg10 {
+      background-color: #dcfce7;
+      color: #166534;
+    }
+    .badge-reg20 {
+      background-color: #dbeafe;
+      color: #1e40af;
+    }
+    .badge-reg25 {
+      background-color: #fef3c7;
+      color: #92400e;
+    }
+
+    /* Actions */
+    .actions-bar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      outline: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--cyan));
+      border: none;
+      color: white;
+      box-shadow: 0 4px 14px rgba(13, 115, 119, 0.3);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(13, 115, 119, 0.4);
+    }
+
+    .btn-primary:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn-primary:disabled {
+      background: var(--text-muted);
+      cursor: not-allowed;
+      box-shadow: none;
+      opacity: 0.5;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--bg-card);
+      color: var(--text-primary);
+    }
+
+    /* Info Guide */
+    .guide-card {
+      margin-top: 1rem;
+    }
+
+    .guide-title {
+      font-family: var(--font-title);
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .guide-steps {
+      list-style-type: none;
+    }
+
+    .guide-steps li {
+      margin-bottom: 0.75rem;
+      padding-left: 1.75rem;
+      position: relative;
+    }
+
+    .guide-steps li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      font-weight: bold;
+    }
+
+    /* === Tabela de Codigos de Folha === */
+    .guide-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.75rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.88rem;
+    }
+
+    .guide-table thead tr {
+      background: #eff6ff;
+    }
+
+    .guide-table th {
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border-bottom: 2px solid #93c5fd;
+    }
+
+    .guide-table td {
+      padding: 0.45rem 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      vertical-align: middle;
+    }
+
+    .guide-table tbody tr:hover {
+      background: var(--bg-card);
+    }
+
+    .code-badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    .code-11  { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .code-41  { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+    .code-42  { background: #ffedd5; color: #9a3412; border: 1px solid #fb923c; }
+    .code-51  { background: #dbeafe; color: #1e40af; border: 1px solid #60a5fa; }
+    .code-52  { background: #ede9fe; color: #5b21b6; border: 1px solid #a78bfa; }
+    .code-70  { background: #fce7f3; color: #9d174d; border: 1px solid #f472b6; }
+
+    .guide-note {
+      margin-top: 0.6rem;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      background: var(--warning-bg);
+      border-left: 3px solid var(--warning);
+      padding: 0.4rem 0.75rem;
+      border-radius: 0 6px 6px 0;
+    }
+
+    .footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      margin-top: 3rem;
+      margin-bottom: 2rem;
+    }
+
+    .footer a {
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Keyframes */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f3f4f6;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #d1d5db;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="hd-l">
+      <div class="hd-logo">DP<span>+</span></div>
+      <div class="hd-crumb">Ferramentas / <b>Conversor de Lançamentos para TXT Domínio</b></div>
+    </div>
+    <a class="back-link" href="ferramentas.html">← Voltar às Ferramentas</a>
+  </header>
+
+  <div class="page-wrap">
+
+  <div class="container">
+    
+    <div class="page-intro">
+      <div class="logo-container">
+        <!-- SVG Icon representing converter/file-process -->
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+        </svg>
+      </div>
+      <h1>Conversor de Importação Domínio</h1>
+      <p class="subtitle">Faça upload da planilha Excel de movimentação (.xlsx) ou do arquivo texto (.txt, .csv) e baixe o arquivo de eventos formatado para importação.</p>
+    </div>
+
+    <!-- Upload Card -->
+    <div class="card">
+      <div class="upload-zone" id="drop-zone">
+        <span class="upload-icon">📤</span>
+        <p class="upload-text">Arraste e solte o arquivo aqui ou clique para selecionar</p>
+        <p class="upload-hint">Formatos suportados: Planilha Excel (.xlsx, .xls) ou Texto delimitado (.txt, .csv)</p>
+        <input type="file" id="file-input" class="file-input" accept=".xlsx, .xls, .txt, .csv">
+      </div>
+
+      <!-- File Details -->
+      <div id="file-info-container" style="display: none;">
+        <div class="file-info-bar">
+          <div class="file-details">
+            <svg class="excel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <div>
+              <div class="file-name" id="file-name">Nome_do_arquivo.xlsx</div>
+              <div class="file-size" id="file-size">0 KB</div>
+            </div>
+          </div>
+          <button class="btn-remove" id="btn-clear-file" title="Remover arquivo">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              <line x1="10" y1="11" x2="10" y2="17"></line>
+              <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Sheet Selector if multiple sheets exist -->
+        <div class="sheet-selector-container" id="sheet-selector-container" style="display: none;">
+          <label for="sheet-select">Escolha a Aba da Planilha:</label>
+          <select id="sheet-select" class="select-custom"></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Processing & Preview Card -->
+    <div class="card" id="process-card" style="display: none;">
+      <h2 class="guide-title" style="margin-bottom: 0.5rem;">📊 Dados Processados</h2>
+      
+      <!-- Metadata boxes -->
+      <div class="summary-grid">
+        <div class="summary-box company">
+          <div class="summary-label">Cód. Empresa</div>
+          <div class="summary-val" id="summary-company">-</div>
+        </div>
+        <div class="summary-box date">
+          <div class="summary-label">Competência</div>
+          <div class="summary-val" id="summary-date">-</div>
+        </div>
+        <div class="summary-box records">
+          <div class="summary-label">Linhas Geradas</div>
+          <div class="summary-val" id="summary-lines">0</div>
+        </div>
+      </div>
+
+      <!-- Alerts for Errors/Warnings -->
+      <div id="alerts-container"></div>
+
+      <!-- Table Preview -->
+      <div style="margin-top: 2rem;">
+        <div class="preview-header">
+          <div class="preview-title">Prévia do Arquivo de Importação</div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 80px;">Registro</th>
+                <th>Dados Físicos da Linha Convertida</th>
+              </tr>
+            </thead>
+            <tbody id="preview-table-body">
+              <!-- Lines generated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions-bar">
+        <button class="btn btn-secondary" id="btn-reset">Limpar</button>
+        <button class="btn btn-primary" id="btn-download">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Baixar arquivo Eventos.txt
+        </button>
+      </div>
+    </div>
+
+    <!-- Help Card -->
+    <div class="card guide-card">
+      <h2 class="guide-title">ℹ️ Instruções de Uso da Planilha</h2>
+      <ul class="guide-steps">
+        <li>Preencha a planilha Excel base, inserindo as informacoes do <strong>Codigo Empresa</strong> (ex: 6188) na primeira parte e a <strong>Competencia</strong> no formato MM/AAAA (ex: 06/2026).</li>
+        <li>
+          Insira os lancamentos contendo o <strong>Tipo de Calculo</strong>, o <strong>Codigo Empregado</strong>, o <strong>Codigo Dependente</strong> (se houver), o <strong>Nome</strong> e os valores nas colunas de <strong>Verbas</strong>.
+          <br><br>
+          <strong>&#9888;&#65039; Atencao &mdash; Tipos de Calculo (Folha) suportados:</strong>
+          <table class="guide-table">
+            <thead>
+              <tr>
+                <th>Codigo</th>
+                <th>Tipo de Folha</th>
+                <th>Descricao</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="code-badge code-11">11</span></td>
+                <td><strong>Folha Mensal</strong></td>
+                <td>Folha de pagamento mensal padrao dos empregados.</td>
+              </tr>
+              <tr>
+                <td><span class="code-badge code-41">41</span></td>
+                <td><strong>Adiantamento</strong></td>
+                <td>Adiantamento quinzenal ou parcial de salario.</td>
+              </tr>
+              <tr>
+                <td><span class="code-badge code-42">42</span></td>
+                <td><strong>Complementar</strong></td>
+                <td>Folha complementar para ajustes e correcoes de competencia.</td>
+              </tr>
+              <tr>
+                <td><span class="code-badge code-51">51</span></td>
+                <td><strong>13o Salario &mdash; Adiantamento</strong></td>
+                <td>Adiantamento da primeira parcela do 13o salario (pago ate novembro).</td>
+              </tr>
+              <tr>
+                <td><span class="code-badge code-52">52</span></td>
+                <td><strong>13o Salario &mdash; Integral</strong></td>
+                <td>Pagamento integral ou segunda parcela do 13o salario (pago ate dezembro).</td>
+              </tr>
+              <tr>
+                <td><span class="code-badge code-70">70</span></td>
+                <td><strong>PLR &mdash; Participacao de Lucros</strong></td>
+                <td>Folha de Participacao nos Lucros e Resultados (PLR).</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="guide-note">&#128274; Apenas os codigos listados acima sao processados. Linhas com outros codigos serao ignoradas na geracao do arquivo.</p>
+        </li>
+        <li>O conversor identifica automaticamente as colunas marcadas como <strong>Evento de Plano de Saude (Sim/Nao) = Sim</strong> e utiliza o <strong>CNPJ da Operadora</strong> correspondente para criar os registros especificos (Reg. 10, 20 e 25).</li>
+        <li>Para verbas de <strong>Horas</strong> (cujo cabecalho da coluna inicie com o termo "HORAS"), a aplicacao calcula automaticamente a conversao centesimal de minutos para centesimos de hora (ex: 2,30 torna-se 2,5 horas &rarr; valor formatado 250).</li>
+      </ul>
+    </div>
+
+    <div class="footer">
+      <p>Desenvolvido para otimização de Controles Operacionais &copy; 2026</p>
+    </div>
+
+  </div>
+
+  </div>
+
+  <script>
+    // Configurações do layout Domínio
+    let currentWorkbook = null;
+    let fileType = null;
+    let rawTextContent = null;
+    let generatedLines = [];
+
+    // DOM Elements
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileInfoContainer = document.getElementById('file-info-container');
+    const fileNameEl = document.getElementById('file-name');
+    const fileSizeEl = document.getElementById('file-size');
+    const btnClearFile = document.getElementById('btn-clear-file');
+    const sheetSelectorContainer = document.getElementById('sheet-selector-container');
+    const sheetSelect = document.getElementById('sheet-select');
+    const processCard = document.getElementById('process-card');
+    const summaryCompany = document.getElementById('summary-company');
+    const summaryDate = document.getElementById('summary-date');
+    const summaryLines = document.getElementById('summary-lines');
+    const previewTableBody = document.getElementById('preview-table-body');
+    const alertsContainer = document.getElementById('alerts-container');
+    const btnDownload = document.getElementById('btn-download');
+    const btnReset = document.getElementById('btn-reset');
+
+    // Drag and Drop Event Listeners
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+      }, false);
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+      if (files.length) {
+        handleFileSelect(files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (fileInput.files.length) {
+        handleFileSelect(fileInput.files[0]);
+      }
+    });
+
+    btnClearFile.addEventListener('click', resetAll);
+    btnReset.addEventListener('click', resetAll);
+    
+    sheetSelect.addEventListener('change', () => {
+      if (currentWorkbook) {
+        processExcelSheet(currentWorkbook, sheetSelect.value);
+      }
+    });
+
+    btnDownload.addEventListener('click', () => {
+      if (!generatedLines.length) return;
+      
+      const fileContent = generatedLines.join('\r\n') + '\r\n';
+      const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'eventos.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    function resetAll() {
+      fileInput.value = '';
+      fileInfoContainer.style.display = 'none';
+      sheetSelectorContainer.style.display = 'none';
+      processCard.style.display = 'none';
+      currentWorkbook = null;
+      fileType = null;
+      rawTextContent = null;
+      generatedLines = [];
+      previewTableBody.innerHTML = '';
+      alertsContainer.innerHTML = '';
+    }
+
+    function handleFileSelect(file) {
+      resetAll();
+      
+      fileNameEl.textContent = file.name;
+      fileSizeEl.textContent = formatBytes(file.size);
+      fileInfoContainer.style.display = 'block';
+      
+      const extension = file.name.split('.').pop().toLowerCase();
+      
+      const reader = new FileReader();
+      
+      if (extension === 'xlsx' || extension === 'xls') {
+        fileType = 'excel';
+        reader.onload = function(e) {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+            currentWorkbook = workbook;
+            
+            // Popula seletor de abas
+            sheetSelect.innerHTML = '';
+            workbook.SheetNames.forEach(name => {
+              const opt = document.createElement('option');
+              opt.value = name;
+              opt.textContent = name;
+              sheetSelect.appendChild(opt);
+            });
+            
+            if (workbook.SheetNames.length > 1) {
+              sheetSelectorContainer.style.display = 'flex';
+            } else {
+              sheetSelectorContainer.style.display = 'none';
+            }
+            
+            processExcelSheet(workbook, workbook.SheetNames[0]);
+          } catch (err) {
+            showError("Erro ao processar planilha Excel: " + err.message);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else if (extension === 'txt' || extension === 'csv') {
+        fileType = 'text';
+        reader.onload = function(e) {
+          try {
+            rawTextContent = e.target.result;
+            processTextContent(rawTextContent);
+          } catch (err) {
+            showError("Erro ao ler arquivo texto: " + err.message);
+          }
+        };
+        reader.readAsText(file, 'utf-8'); // Tenta ler em UTF-8
+      } else {
+        showError("Formato de arquivo não suportado. Envie .xlsx, .xls, .txt ou .csv.");
+      }
+    }
+
+    // Processa Planilha Excel
+    function processExcelSheet(workbook, sheetName) {
+      const sheet = workbook.Sheets[sheetName];
+      // Converte para matriz mantendo células nulas
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+      processDataMatrix(rows);
+    }
+
+    // Processa Arquivo Texto (delimitado por tabulação)
+    function processTextContent(text) {
+      const lines = text.split(/\r?\n/);
+      const rows = lines.map(line => line.split('\t'));
+      processDataMatrix(rows);
+    }
+
+    // Lógica Central de Conversão
+    function processDataMatrix(rows) {
+      generatedLines = [];
+      previewTableBody.innerHTML = '';
+      alertsContainer.innerHTML = '';
+      
+      let codemp = "";
+      let mesano = "";
+      let headerRowIdx = -1;
+      let planoSaudeRowIdx = -1;
+      let cnpjRowIdx = -1;
+      
+      // Sanitização de acentos
+      const sanitizeString = (str) => {
+        if (!str) return "";
+        return String(str)
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .trim();
+      };
+
+      // 1. Identificar metadados e linhas de configuração
+      for (let r = 0; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row || row.length === 0) continue;
+        
+        const cellA = row[0];
+        const cellA_clean = sanitizeString(cellA);
+        
+        if (cellA_clean.includes("codigo empresa") || cellA_clean.includes("cod empresa") || cellA_clean.includes("cdigo empresa")) {
+          // Busca código na coluna D (índice 3) ou primeira célula não vazia seguinte
+          let val = row[3];
+          if (val === null || val === undefined) {
+            for (let c = 1; c < row.length; c++) {
+              if (row[c] !== null && row[c] !== undefined && row[c] !== "") {
+                val = row[c];
+                break;
+              }
+            }
+          }
+          codemp = soNumeros(val).padStart(10, '0');
+        } 
+        else if (cellA_clean.includes("competencia") || cellA_clean.includes("referencia") || cellA_clean.includes("competncia")) {
+          let val = row[3];
+          if (val === null || val === undefined) {
+            for (let c = 1; c < row.length; c++) {
+              if (row[c] !== null && row[c] !== undefined && row[c] !== "") {
+                val = row[c];
+                break;
+              }
+            }
+          }
+          mesano = parseCompetence(val);
+        }
+        else if (cellA_clean.includes("tipo de calculo") || cellA_clean.includes("tipo de clculo")) {
+          headerRowIdx = r;
+        }
+        else if (cellA_clean.includes("sim/nao") || cellA_clean.includes("sim/no") || (cellA_clean.includes("plano de saude") && cellA_clean.includes("sim"))) {
+          planoSaudeRowIdx = r;
+        }
+        else if (cellA_clean.includes("cnpj da operadora") || cellA_clean.includes("cnpj operadora") || (cellA_clean.includes("cnpj") && cellA_clean.includes("plano"))) {
+          cnpjRowIdx = r;
+        }
+      }
+
+      // Validações básicas de metadados
+      let hasValidationErrors = false;
+      
+      if (!codemp || codemp === "0000000000") {
+        showWarning("Código da empresa não identificado na planilha. Verifique a célula.");
+        codemp = "0000000000";
+      }
+      
+      if (!mesano || mesano === "ERRO!!") {
+        showError("Data de competência/referência inválida ou não encontrada. Exemplo esperado: 06/2026.");
+        hasValidationErrors = true;
+        mesano = "ERRO!!";
+      }
+
+      if (headerRowIdx === -1) {
+        showError("Linha de cabeçalho com coluna 'Tipo de Cálculo' não encontrada. Verifique o formato.");
+        hasValidationErrors = true;
+        processCard.style.display = 'block';
+        updateSummary(codemp, mesano, 0);
+        return;
+      }
+
+      // 2. Mapeamento das colunas
+      const headerRow = rows[headerRowIdx];
+      const maxCol = headerRow.length;
+      const nome_evento = [];
+      const codigo_evento = [];
+      const plano_de_saude = [];
+      const cnpj_operadora = [];
+      
+      // O código do evento fica na linha imediatamente seguinte à de cabeçalho
+      const codeRow = rows[headerRowIdx + 1] || [];
+      const planoSaudeRow = planoSaudeRowIdx !== -1 ? rows[planoSaudeRowIdx] : [];
+      const cnpjRow = cnpjRowIdx !== -1 ? rows[cnpjRowIdx] : [];
+
+      for (let c = 0; c < maxCol; c++) {
+        // Nome do evento (5 letras do cabeçalho em maiúsculo)
+        const cellVal = headerRow[c];
+        nome_evento[c] = cellVal ? String(cellVal).trim().toUpperCase().substring(0, 5) : "";
+        
+        // Código do evento na linha seguinte
+        const codeVal = codeRow[c];
+        codigo_evento[c] = codeVal ? soNumeros(codeVal) : "";
+        
+        // Configuração de Plano de Saúde
+        const psVal = planoSaudeRow[c];
+        plano_de_saude[c] = psVal ? String(psVal).trim().toUpperCase().substring(0, 1) : "N";
+        
+        // CNPJ da operadora
+        const cnpjVal = cnpjRow[c];
+        cnpj_operadora[c] = cnpjVal ? soNumeros(cnpjVal) : "";
+      }
+
+      // 3. Processamento das linhas de lançamento
+      const startRow = Math.max(headerRowIdx + 2, planoSaudeRowIdx + 1, cnpjRowIdx + 1);
+      const healthPlanData = {};
+      
+      let codi_empregado = "";
+      let tpcalc = "";
+
+      for (let r = startRow; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row || row.length === 0) continue;
+        
+        const cellA = row[0];
+        const cellB = row[1];
+        const cellC = row[2];
+        
+        const linha = cellA !== null && cellA !== undefined ? String(cellA).trim() : "";
+        const codfun_raw = cellB !== null && cellB !== undefined ? String(cellB).trim() : "";
+        const coddep_raw = cellC !== null && cellC !== undefined ? String(cellC).trim() : "";
+        
+        const codfun = soNumeros(codfun_raw);
+        const codi_dependente = soNumeros(coddep_raw);
+        
+        // Verifica se é uma linha de empregado ou dependente
+        let isEmployeeRow = false;
+        if (["11", "41", "42", "51", "52", "70"].includes(linha)) {
+          isEmployeeRow = true;
+        } else if (codi_dependente !== "" && parseInt(codi_dependente, 10) !== 0) {
+          isEmployeeRow = true; // Linha de dependente com lançamento
+        }
+        
+        if (!isEmployeeRow) continue;
+        
+        if (linha !== "" && parseInt(linha, 10) !== 0) {
+          tpcalc = soNumeros(linha);
+        }
+        
+        // Atualiza código do funcionário ativo se houver
+        if (codfun !== "" && parseInt(codfun, 10) !== 0) {
+          codi_empregado = codfun;
+        }
+        
+        // Percorre as colunas de verbas (da coluna 5 / índice 4 em diante)
+        for (let c = 4; c < maxCol; c++) {
+          const val = row[c];
+          if (val === null || val === undefined || val === "" || val === 0) continue;
+          
+          const evt_code = codigo_evento[c];
+          if (!evt_code || parseInt(evt_code, 10) === 0) continue;
+          
+          if (plano_de_saude[c] === "S") {
+            // Lógica de Plano de Saúde
+            const evt_val = getCents(val);
+            const evt_op = cnpj_operadora[c] || "";
+            
+            if (evt_val !== 0) {
+              const healthKey = `${codi_empregado}_${evt_code}`;
+              if (!healthPlanData[healthKey]) {
+                healthPlanData[healthKey] = {
+                  codi_empregado: codi_empregado,
+                  evt_code: evt_code,
+                  tpcalc: tpcalc,
+                  total_valor: 0,
+                  operadora: evt_op,
+                  records25: []
+                };
+              }
+              healthPlanData[healthKey].total_valor += evt_val;
+              
+              if (codfun !== "" && parseInt(codfun, 10) !== 0) {
+                healthPlanData[healthKey].records25.push({
+                  type: "T",
+                  code: codi_empregado,
+                  valor: evt_val
+                });
+              }
+              if (codi_dependente !== "" && parseInt(codi_dependente, 10) !== 0) {
+                healthPlanData[healthKey].records25.push({
+                  type: "D",
+                  code: codi_dependente,
+                  valor: evt_val
+                });
+              }
+            }
+          } else {
+            // Eventos normais
+            const evt_name = nome_evento[c];
+            let valor_fmt = "";
+            
+            if (evt_name === "HORAS") {
+              valor_fmt = convertHours(val);
+            } else {
+              valor_fmt = formatMoneyValue(val);
+            }
+            
+            const emp_padded = String(codi_empregado).padStart(10, '0');
+            const evt_padded = String(evt_code).padStart(4, '0');
+            const tpcalc_fmt = String(tpcalc).padStart(2, '0');
+            
+            const line = `10${emp_padded}${mesano}${evt_padded}${tpcalc_fmt}${valor_fmt}${codemp}`;
+            generatedLines.push(line);
+            addPreviewRow("Reg. 10", line);
+          }
+        }
+      }
+
+      // 4. Grava os registros de plano de saúde acumulados
+      for (const key in healthPlanData) {
+        const data = healthPlanData[key];
+        
+        const emp_padded = String(data.codi_empregado).padStart(10, '0');
+        const evt_padded = String(data.evt_code).padStart(4, '0');
+        const total_val_str = String(data.total_valor).padStart(9, '0');
+        const tpcalc_fmt = String(data.tpcalc).padStart(2, '0');
+        
+        // Registro 10 - Total do plano
+        const reg10 = `10${emp_padded}${mesano}${evt_padded}${tpcalc_fmt}${total_val_str}${codemp}`;
+        generatedLines.push(reg10);
+        addPreviewRow("Reg. 10", reg10);
+        
+        // Registro 20 - Operadora
+        const op_padded = String(data.operadora).padEnd(14, '0').substring(0, 14);
+        const reg20 = `20${op_padded}`;
+        generatedLines.push(reg20);
+        addPreviewRow("Reg. 20", reg20);
+        
+        // Registro 25 - Detalhamento Beneficiário
+        data.records25.forEach(rec => {
+          const code_fmt = String(rec.code).padStart(10, '0');
+          const val_fmt = String(rec.valor).padStart(9, '0');
+          const reg25 = `25${rec.type}${code_fmt}${val_fmt}`;
+          generatedLines.push(reg25);
+          addPreviewRow("Reg. 25", reg25);
+        });
+      }
+
+      // Atualiza interface
+      updateSummary(codemp, mesano, generatedLines.length);
+      btnDownload.disabled = generatedLines.length === 0 || hasValidationErrors;
+      processCard.style.display = 'block';
+    }
+
+    // Auxiliares de Formatação e Conversão
+    function soNumeros(val) {
+      if (val === null || val === undefined) return "";
+      return String(val).replace(/[^0-9]/g, "");
+    }
+
+    // Garante conversão de valor monetário multiplicando por 100 para pegar os centavos
+    function formatMoneyValue(val) {
+      if (val === null || val === undefined || val === "") return "000000000";
+      let num = 0;
+      if (typeof val === 'number') {
+        num = val;
+      } else {
+        const clean = String(val).replace(',', '.').replace(/[^0-9.-]/g, '');
+        num = parseFloat(clean);
+      }
+      if (isNaN(num)) return "000000000";
+      return num.toFixed(2).replace('.', '').padStart(9, '0');
+    }
+
+    function getCents(val) {
+      if (val === null || val === undefined || val === "") return 0;
+      if (typeof val === 'number') {
+        return Math.round(val * 100);
+      }
+      const clean = String(val).replace(',', '.').replace(/[^0-9.-]/g, '');
+      const num = parseFloat(clean);
+      if (isNaN(num)) return 0;
+      return Math.round(num * 100);
+    }
+
+    function convertHours(val) {
+      if (val === null || val === undefined || val === "") return "000000000";
+      let str = String(val).trim().replace(',', '.');
+      
+      if (str.includes('.')) {
+        const parts = str.split('.');
+        const hrs = parseInt(parts[0], 10) || 0;
+        let mins_str = parts[1] || '';
+        if (mins_str.length < 2) {
+          mins_str = mins_str.padEnd(2, '0');
+        } else {
+          mins_str = mins_str.substring(0, 2);
+        }
+        const mins = parseInt(mins_str, 10) || 0;
+        const centesimal = Math.round((mins / 60) * 100);
+        const total = hrs * 100 + centesimal;
+        return String(total).padStart(9, '0');
+      } else {
+        const val_int = parseInt(str, 10) || 0;
+        if (str.length <= 2) {
+          // Apenas horas
+          const total = val_int * 100;
+          return String(total).padStart(9, '0');
+        } else {
+          // HHMM (ex: 130 -> 1h e 30m)
+          const mins = val_int % 100;
+          const hrs = Math.floor(val_int / 100);
+          const centesimal = Math.round((mins / 60) * 100);
+          const total = hrs * 100 + centesimal;
+          return String(total).padStart(9, '0');
+        }
+      }
+    }
+
+    function parseCompetence(val) {
+      if (val instanceof Date) {
+        const y = val.getFullYear();
+        const m = String(val.getMonth() + 1).padStart(2, '0');
+        return `${y}${m}`;
+      }
+      
+      const str = String(val).trim();
+      
+      // Match MM/YYYY ou MM-YYYY
+      let m = str.match(/^(\d{1,2})[\/\-](\d{4})$/);
+      if (m) {
+        return `${m[2]}${m[1].padStart(2, '0')}`;
+      }
+      
+      // Match YYYY-MM-DD
+      let mDate = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+      if (mDate) {
+        return `${mDate[1]}${mDate[2].padStart(2, '0')}`;
+      }
+      
+      // Match MM/YY (ex: 06/26 -> 202606)
+      let mShort = str.match(/^(\d{1,2})[\/\-](\d{2})$/);
+      if (mShort) {
+        const yr = parseInt(mShort[2], 10);
+        const y = yr < 50 ? 2000 + yr : 1900 + yr; // heuristica simples
+        return `${y}${mShort[1].padStart(2, '0')}`;
+      }
+      
+      // Fallback: busca por 6 dígitos numéricos
+      const digits = str.replace(/\D/g, "");
+      if (digits.length === 6) {
+        const part1 = digits.substring(0, 2);
+        const part2 = digits.substring(2);
+        // Se a segunda parte parece um ano (ex: 2026)
+        if (parseInt(part2, 10) > 1900 && parseInt(part2, 10) < 2100) {
+          return `${part2}${part1.padStart(2, '0')}`;
+        }
+      }
+      return "ERRO!!";
+    }
+
+    // Funções auxiliares de interface
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function addPreviewRow(type, content) {
+      let badgeClass = "badge-reg10";
+      if (type === "Reg. 20") badgeClass = "badge-reg20";
+      if (type === "Reg. 25") badgeClass = "badge-reg25";
+      
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="badge ${badgeClass}">${type}</span></td>
+        <td style="font-family: monospace; letter-spacing: 0.05em; font-size: 0.85rem;">${content}</td>
+      `;
+      previewTableBody.appendChild(tr);
+    }
+
+    // Atualiza o painel de resumo
+    function updateSummary(company, date, linesCount) {
+      summaryCompany.textContent = (company && company !== "0000000000") ? company : "Não localizado";
+      
+      if (date && date !== "ERRO!!") {
+        const yr = date.substring(0, 4);
+        const mo = date.substring(4, 6);
+        summaryDate.textContent = `${mo}/${yr}`;
+      } else {
+        summaryDate.textContent = "Inválida";
+      }
+      
+      summaryLines.textContent = linesCount;
+    }
+
+    function showError(message) {
+      const alert = document.createElement('div');
+      alert.className = 'alert alert-error';
+      alert.innerHTML = `
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Erro:</strong> ${message}</div>
+      `;
+      alertsContainer.appendChild(alert);
+    }
+
+    function showWarning(message) {
+      const alert = document.createElement('div');
+      alert.className = 'alert alert-warning';
+      alert.innerHTML = `
+        <span class="alert-icon">🔔</span>
+        <div><strong>Atenção:</strong> ${message}</div>
+      `;
+      alertsContainer.appendChild(alert);
+    }
+  </script>
+</body>
+</html>
