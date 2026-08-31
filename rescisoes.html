@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DP+ · Rescisões</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 /* ============================================================
    DESIGN TOKENS — copiados literalmente do index.html para manter
@@ -348,7 +347,6 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 20px 20px }
           <div class="rs-search">
             <input type="text" id="busca" placeholder="Buscar funcionário ou empresa…" oninput="renderLista()">
           </div>
-          <button class="btn btn-secondary" onclick="exportRescisoes()" title="Exporta as rescisões que estão sendo exibidas na lista, respeitando os filtros atuais">⬇ Exportar Excel</button>
           <button class="btn btn-primary" onclick="openCadastro()">+ Nova rescisão</button>
         </div>
       </div>
@@ -459,7 +457,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 20px 20px }
 // ============================================================
 // CONFIG — mesmo projeto Supabase do index.html
 // ============================================================
-const SUPA_URL = 'https://lpktdwfwlrqzyrvxcuum.supabase.co';
+const SUPA_URL = 'https://app.dpmaisconsultoria.com.br/supa';
 const SUPA_KEY = 'sb_publishable_6ohdnk6vaoiqtUC_Tq66OQ_wFV7evK0';
 const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 
@@ -882,12 +880,6 @@ function renderLista() {
     );
   }
 
-  // Guarda a lista filtrada/escopada exibida no momento para a exportação
-  // Excel (mesmo padrão do exportCarteiras() no index.html) — assim o
-  // botão sempre exporta exatamente o que está na tela, respeitando
-  // escopo, etapa do pipeline, analista, "vencendo em 5 dias" e busca.
-  window._rescExport = rows;
-
   if (!rows.length) {
     eid('lista').innerHTML = `<div class="empty"><h3>Nenhuma rescisão encontrada</h3>
       <p>Ajuste os filtros ou cadastre uma nova rescisão.</p></div>`;
@@ -910,51 +902,6 @@ function renderLista() {
         </div>
       </div>`;
   }).join('');
-}
-
-// ============================================================
-// EXPORTAÇÃO EXCEL DA LISTA DE RESCISÕES
-// Exporta exatamente o que está sendo exibido no momento (respeita
-// escopo, etapa do pipeline, analista, "vencendo em 5 dias" e busca —
-// ver window._rescExport, preenchido em renderLista()). Mesmo padrão
-// usado em exportCarteiras() no index.html.
-// ============================================================
-function exportRescisoes() {
-  if (typeof XLSX === 'undefined') { toast('Biblioteca Excel não carregada. Recarregue a página.', 'err'); return; }
-  const rows = window._rescExport;
-  if (!rows || !rows.length) { toast('Nada para exportar com os filtros atuais.', 'inf'); return; }
-
-  const header = [
-    'Código', 'Razão Social', 'Funcionário', 'Tipo de Rescisão', 'Aviso Prévio',
-    'Status', 'Cancelada', 'Responsável', 'Data da Rescisão', 'Prazo de Pagamento', 'Observações'
-  ];
-  const aoa = [header];
-
-  rows.forEach(r => {
-    aoa.push([
-      r.empresas?.codigo ?? '',
-      r.empresas?.razao_social ?? '',
-      r.funcionario_nome ?? '',
-      TIPO_RESCISAO_LABEL[r.tipo_rescisao] || r.tipo_rescisao || '',
-      TIPO_AVISO_LABEL[r.tipo_aviso] || r.tipo_aviso || '',
-      STATUS_LABEL[r.status] || r.status || '',
-      r.cancelada ? 'Sim' : 'Não',
-      r.usuarios?.nome ?? '',
-      r.data_rescisao ? r.data_rescisao.split('-').reverse().join('/') : '',
-      r.prazo_pagamento ? r.prazo_pagamento.split('-').reverse().join('/') : '',
-      r.observacoes ?? ''
-    ]);
-  });
-
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [
-    { wch: 8 },  { wch: 32 }, { wch: 26 }, { wch: 20 }, { wch: 14 },
-    { wch: 18 }, { wch: 10 }, { wch: 22 }, { wch: 14 }, { wch: 16 }, { wch: 40 }
-  ];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Rescisões');
-  XLSX.writeFile(wb, `dpplus_rescisoes_${new Date().toISOString().slice(0, 10)}.xlsx`);
-  toast('Rescisões exportadas!', 'ok');
 }
 
 // ============================================================

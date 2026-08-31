@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   (async function dpGuard() {
-    const SUPA_URL = 'https://lpktdwfwlrqzyrvxcuum.supabase.co';
+    const SUPA_URL = 'https://app.dpmaisconsultoria.com.br/supa';
     const SUPA_KEY = 'sb_publishable_6ohdnk6vaoiqtUC_Tq66OQ_wFV7evK0';
     const sbGuard = window.supabase.createClient(SUPA_URL, SUPA_KEY);
     const { data: { session } } = await sbGuard.auth.getSession();

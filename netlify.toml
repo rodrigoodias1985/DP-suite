@@ -1,0 +1,22 @@
+# ============================================================
+# Proxy same-origin para o Supabase
+# ------------------------------------------------------------
+# Objetivo: fazer o navegador chamar sempre app.dpmaisconsultoria.com.br
+# (nunca lpktdwfwlrqzyrvxcuum.supabase.co diretamente), eliminando a
+# requisição cross-origin. Isso contorna interferência de inspeção
+# SSL/TLS de antivírus corporativo (ex: ESET) que corrompe o cabeçalho
+# CORS em chamadas cross-origin — a chamada real ao Supabase passa a
+# acontecer servidor-a-servidor (Netlify → Supabase), nunca saindo da
+# máquina do analista para um domínio de terceiros.
+#
+# O prefixo /supa/* é repassado 1:1 para o domínio real do Supabase,
+# preservando método, cabeçalhos (incluindo Authorization), corpo e
+# query string. Não altera Auth, RLS, RPCs nem nenhuma regra de negócio
+# — é um repasse transparente.
+# ============================================================
+
+[[redirects]]
+  from = "/supa/*"
+  to = "https://lpktdwfwlrqzyrvxcuum.supabase.co/:splat"
+  status = 200
+  force = true
